@@ -123,6 +123,24 @@
       },
       "heating_last_reading_date": {
         "name": "Oppvarming avlesningsdato"
+      },
+      "cold_water_building_average": {
+        "name": "Kaldtvann snitt i bygget"
+      },
+      "cold_water_previous_daily_average": {
+        "name": "Kaldtvann forrige daglige snitt"
+      },
+      "hot_water_building_average": {
+        "name": "Varmtvann snitt i bygget"
+      },
+      "hot_water_previous_daily_average": {
+        "name": "Varmtvann forrige daglige snitt"
+      },
+      "heating_building_average": {
+        "name": "Oppvarming snitt i bygget"
+      },
+      "heating_previous_daily_average": {
+        "name": "Oppvarming forrige daglige snitt"
       }
     }
   }

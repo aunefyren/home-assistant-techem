@@ -34,6 +34,10 @@ class TechemSensorDescription(SensorEntityDescription):
     native: bool = False
 
 
+# Raw figures from Techem are enabled by default; the percentage sensors below
+# are plain arithmetic on those figures and ship disabled, so the numbers you
+# see are the ones Techem actually reported.
+#
 # The cumulative sensors deliberately carry no state class. They are display
 # values fetched hours after the fact, so letting Home Assistant derive
 # statistics from them would offer the energy dashboard a misdated rival to the
@@ -48,9 +52,14 @@ SENSORS: tuple[TechemSensorDescription, ...] = (
     TechemSensorDescription(
         key="previous_year",
         translation_key="previous_year",
-        entity_registry_enabled_default=False,
         native=True,
         value_fn=lambda data: data.previous_year,
+    ),
+    TechemSensorDescription(
+        key="building_average",
+        translation_key="building_average",
+        native=True,
+        value_fn=lambda data: data.property_comparison,
     ),
     TechemSensorDescription(
         key="daily_average",
@@ -66,10 +75,19 @@ SENSORS: tuple[TechemSensorDescription, ...] = (
         value_fn=lambda data: data.last_reading_value,
     ),
     TechemSensorDescription(
+        key="previous_daily_average",
+        translation_key="previous_daily_average",
+        state_class=SensorStateClass.MEASUREMENT,
+        entity_registry_enabled_default=False,
+        native=True,
+        value_fn=lambda data: data.previous_daily_average,
+    ),
+    TechemSensorDescription(
         key="year_change",
         translation_key="year_change",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_registry_enabled_default=False,
         suggested_display_precision=0,
         value_fn=lambda data: data.year_change_percent,
     ),
@@ -78,6 +96,7 @@ SENSORS: tuple[TechemSensorDescription, ...] = (
         translation_key="average_change",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_registry_enabled_default=False,
         suggested_display_precision=0,
         value_fn=lambda data: data.average_change_percent,
     ),
@@ -86,6 +105,7 @@ SENSORS: tuple[TechemSensorDescription, ...] = (
         translation_key="property_comparison",
         native_unit_of_measurement=PERCENTAGE,
         state_class=SensorStateClass.MEASUREMENT,
+        entity_registry_enabled_default=False,
         suggested_display_precision=0,
         value_fn=lambda data: data.property_comparison_percent,
     ),

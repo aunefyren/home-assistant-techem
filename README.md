@@ -89,13 +89,22 @@ For every quantity your unit actually meters, you get:
 | Entity | Description |
 | --- | --- |
 | `... this year` | Consumption so far this calendar year |
-| `... same period last year` | The same span last year (disabled by default) |
+| `... same period last year` | The same span last year |
+| `... building average` | The average comparable unit in your building |
 | `... daily average` | Average per day over the last seven days with data |
 | `... last reading` | The most recent daily reading |
-| `... vs last year` | Year to date against last year, in percent |
-| `... vs previous period` | Recent daily average against the preceding week |
-| `... vs building average` | Year to date against the average comparable unit |
 | `... reading date` | The date of the most recent reading (diagnostic) |
+
+Every figure above is reported by Techem directly. The following are plain
+arithmetic on those figures and ship **disabled by default** -- enable them in
+the entity settings if you would rather not write a template:
+
+| Entity | Equivalent to |
+| --- | --- |
+| `... vs last year` | `this year` against `same period last year` |
+| `... vs previous period` | `daily average` against `previous daily average` |
+| `... vs building average` | `this year` against `building average` |
+| `... previous daily average` | The seven days before the current average |
 
 Each also carries a `rooms` attribute with the per-room split, and a
 `statistic_id` attribute pointing at its long-term statistics.

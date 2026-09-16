@@ -123,6 +123,24 @@
       },
       "heating_last_reading_date": {
         "name": "Heating reading date"
+      },
+      "cold_water_building_average": {
+        "name": "Cold water building average"
+      },
+      "cold_water_previous_daily_average": {
+        "name": "Cold water previous daily average"
+      },
+      "hot_water_building_average": {
+        "name": "Hot water building average"
+      },
+      "hot_water_previous_daily_average": {
+        "name": "Hot water previous daily average"
+      },
+      "heating_building_average": {
+        "name": "Heating building average"
+      },
+      "heating_previous_daily_average": {
+        "name": "Heating previous daily average"
       }
     }
   }
