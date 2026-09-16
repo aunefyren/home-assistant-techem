@@ -1,6 +1,10 @@
 {
   "name": "Techem",
   "content_in_root": false,
-  "country": ["NO"],
-  "render_readme": true
+  "country": [
+    "NO",
+    "DK"
+  ],
+  "render_readme": true,
+  "homeassistant": "2026.2.0"
 }

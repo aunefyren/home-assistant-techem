@@ -15,3 +15,7 @@ jobs:
         uses: "hacs/action@main"
         with:
           category: "integration"
+          # The brands check requires the `techem` domain to exist in
+          # home-assistant/brands, which needs a separate pull request to that
+          # repository with an icon and logo. Drop this ignore once that lands.
+          ignore: "brands"
