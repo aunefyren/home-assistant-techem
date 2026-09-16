@@ -23,6 +23,7 @@ import datetime as dt
 import getpass
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -85,6 +86,16 @@ def post(
         return {"_error": repr(err)}
 
 
+# Identifiers that turn up inside free text rather than in a field of their
+# own. Techem's GraphQL errors quote the offending value, and its node ids are
+# base64 of a path like "p__550.u__39916.g__359491" -- the property and unit
+# numbers of the home. Redacting by key alone misses all of that.
+NODE_PATH = re.compile(r"\b([pugms])__\d+\b")
+LONG_TOKEN = re.compile(r"\b[A-Za-z0-9+/]{16,}={0,2}\b")
+
+_seen_values: set[str] = set()
+
+
 def redact(obj, key: str | None = None):
     """Replace identifying values with stable placeholders, keeping shape."""
     if isinstance(obj, dict):
@@ -92,9 +103,32 @@ def redact(obj, key: str | None = None):
     if isinstance(obj, list):
         return [redact(v, key) for v in obj]
     if key in REDACT_KEYS and isinstance(obj, (str, int)) and obj != "":
+        _seen_values.add(str(obj))
         index = _redactions.setdefault(f"{key}:{obj}", str(len(_redactions)))
         return f"<{key}:{index}>"
     return obj
+
+
+def scrub_text(obj):
+    """Second pass: strip identifiers embedded in free text.
+
+    Runs after `redact` so it knows every value worth hunting for, and also
+    masks node paths and long opaque tokens on sight.
+    """
+    if isinstance(obj, dict):
+        return {k: scrub_text(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [scrub_text(v) for v in obj]
+    if not isinstance(obj, str):
+        return obj
+
+    text = obj
+    for value in sorted(_seen_values, key=len, reverse=True):
+        if len(value) >= 3 and value in text:
+            text = text.replace(value, "<redacted>")
+    text = LONG_TOKEN.sub("<token>", text)
+    text = NODE_PATH.sub(r"\1__<n>", text)
+    return text
 
 
 def day(offset: int) -> str:
@@ -392,7 +426,7 @@ def main() -> int:
                 },
             )
 
-            call(
+            kpis = call(
                 f"u{idx}.kpis.{q}",
                 KPIS,
                 {
@@ -405,6 +439,97 @@ def main() -> int:
                     }
                 },
             )
+
+            # Traversing the object tree is forbidden for tenants, but the
+            # scoped inputs may still reach individual rooms and meters. If
+            # they do, per-room and per-meter entities become possible.
+            detail = ((kpis.get("data") or {}).get("unitQuantityKpis")) or {}
+
+            for room in (detail.get("rooms") or [])[:3]:
+                label = room.get("label")
+                if not label:
+                    continue
+                call(
+                    f"u{idx}.room.{q}.{label}.kpis",
+                    KPIS,
+                    {
+                        "input": {
+                            "objectId": oid,
+                            "quantity": q,
+                            "roomName": label,
+                            "periodBegin": jan1(),
+                            "periodEnd": day(1),
+                            "compareWith": "previous-year",
+                        }
+                    },
+                )
+                call(
+                    f"u{idx}.room.{q}.{label}.graph",
+                    GRAPH,
+                    {
+                        "graph": {
+                            "objectId": oid,
+                            "roomName": label,
+                            "resolution": "DAY",
+                            "periodBegin": day(10),
+                            "periodEnd": day(0),
+                            "consumption": {
+                                "evaluateOperational": True,
+                                "series": [
+                                    {
+                                        "quantityDescriptor": {
+                                            "quantity": q,
+                                            "normalized": False,
+                                        }
+                                    }
+                                ],
+                            },
+                        }
+                    },
+                )
+
+            for n, meter in enumerate((detail.get("meters") or [])[:3]):
+                meter_id = (meter.get("object") or {}).get("id")
+                if not meter_id:
+                    continue
+                call(
+                    f"u{idx}.meter.{q}.{n}.kpis",
+                    KPIS,
+                    {
+                        "input": {
+                            "objectId": oid,
+                            "quantity": q,
+                            "radioMeterId": meter_id,
+                            "periodBegin": jan1(),
+                            "periodEnd": day(1),
+                            "compareWith": "previous-year",
+                        }
+                    },
+                )
+                call(
+                    f"u{idx}.meter.{q}.{n}.graph",
+                    GRAPH,
+                    {
+                        "graph": {
+                            "objectId": oid,
+                            "radioMeterId": meter_id,
+                            "resolution": "DAY",
+                            "periodBegin": day(10),
+                            "periodEnd": day(0),
+                            "consumption": {
+                                "evaluateOperational": True,
+                                "series": [
+                                    {
+                                        "quantityDescriptor": {
+                                            "quantity": q,
+                                            "normalized": False,
+                                        }
+                                    }
+                                ],
+                            },
+                        }
+                    },
+                )
 
             # The statistics-backfill question: how fine can we resolve, and
             # how far back does history go?
@@ -440,7 +565,7 @@ def main() -> int:
     with open("techem-probe-raw.json", "w") as fh:
         json.dump(out, fh, indent=2, ensure_ascii=False)
 
-    scrubbed = redact(out)
+    scrubbed = scrub_text(redact(out))
     scrubbed.pop("login", None)
     scrubbed.pop("tokenClaims", None)
     scrubbed["tokenClaimKeys"] = sorted((out.get("tokenClaims") or {}).keys())
