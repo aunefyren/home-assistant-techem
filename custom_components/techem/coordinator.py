@@ -122,7 +122,8 @@ class TechemCoordinator(DataUpdateCoordinator[dict[str, QuantityData]]):
                 data.rooms = {
                     str(room["label"]): float(room["value"])
                     for room in kpis.get("rooms") or []
-                    if room and room.get("label") is not None
+                    if room
+                    and room.get("label") is not None
                     and _as_float(room.get("value")) is not None
                 }
 
@@ -130,7 +131,7 @@ class TechemCoordinator(DataUpdateCoordinator[dict[str, QuantityData]]):
                 data.last_reading_day, data.last_reading_value = series[-1]
                 recent = [value for _, value in series[-AVERAGE_DAYS:]]
                 earlier = [
-                    value for _, value in series[-2 * AVERAGE_DAYS:-AVERAGE_DAYS]
+                    value for _, value in series[-2 * AVERAGE_DAYS : -AVERAGE_DAYS]
                 ]
                 if recent:
                     data.daily_average = sum(recent) / len(recent)
@@ -175,8 +176,11 @@ class TechemCoordinator(DataUpdateCoordinator[dict[str, QuantityData]]):
             for key, series in series_by_quantity.items():
                 try:
                     await async_import_statistics(
-                        self.hass, self.client, self.object_id,
-                        QUANTITIES[key], series,
+                        self.hass,
+                        self.client,
+                        self.object_id,
+                        QUANTITIES[key],
+                        series,
                     )
                 except TechemError as err:
                     _LOGGER.warning("Statistics import failed for %s: %s", key, err)

@@ -24,6 +24,17 @@ USER_INPUT = {
 }
 
 
+@pytest.fixture(autouse=True)
+def mock_setup_entry():
+    """Stop the flow from setting the entry up for real.
+
+    These tests are about the flow itself; a real setup would drag in the
+    recorder and the coordinator's first refresh for no benefit.
+    """
+    with patch("custom_components.techem.async_setup_entry", return_value=True) as mock:
+        yield mock
+
+
 @pytest.fixture
 def patched_session(session: FakeSession):
     """Give the config flow our fake aiohttp session."""
@@ -57,8 +68,15 @@ def test_normalise_host_accepts(raw: str, expected: str) -> None:
 
 @pytest.mark.parametrize(
     "raw",
-    ["", "   ", "a..b", "-bad.com", "host_underscore.no", "techemadmin.no:8080",
-     "javascript:alert(1)"],
+    [
+        "",
+        "   ",
+        "a..b",
+        "-bad.com",
+        "host_underscore.no",
+        "techemadmin.no:8080",
+        "javascript:alert(1)",
+    ],
 )
 def test_normalise_host_rejects(raw: str) -> None:
     """Anything that is not a plain hostname is refused."""
@@ -256,9 +274,7 @@ async def test_options_flow_sets_interval(
     """The poll interval is adjustable."""
     mock_config_entry.add_to_hass(hass)
 
-    result = await hass.config_entries.options.async_init(
-        mock_config_entry.entry_id
-    )
+    result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
     assert result["type"] is FlowResultType.FORM
 
     result = await hass.config_entries.options.async_configure(
@@ -274,9 +290,7 @@ async def test_options_flow_rejects_out_of_range(
     """Absurd intervals are refused by the schema."""
     mock_config_entry.add_to_hass(hass)
 
-    result = await hass.config_entries.options.async_init(
-        mock_config_entry.entry_id
-    )
+    result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
     with pytest.raises(InvalidData):
         await hass.config_entries.options.async_configure(
             result["flow_id"], {CONF_SCAN_INTERVAL: 999}

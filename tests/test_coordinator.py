@@ -29,12 +29,6 @@ EXPECTED_PREVIOUS_DAILY_AVERAGE = {
 EXPECTED_YEAR_TO_DATE = {HOT: 18.607, COLD: 56.490999999999985, HEAT: 3252.0}
 
 
-@pytest.fixture(autouse=True)
-def recorder(recorder_mock):
-    """The integration depends on the recorder, so tests need it set up."""
-    return
-
-
 @pytest.fixture
 def patched_setup(session: FakeSession):
     """Fake the API and skip the statistics import.
@@ -56,6 +50,7 @@ def patched_setup(session: FakeSession):
 
 
 async def setup_entry(hass: HomeAssistant, entry: MockConfigEntry) -> None:
+    """Add the entry to hass and set it up."""
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()

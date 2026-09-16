@@ -82,7 +82,9 @@ async def async_import_statistics(
     series = recent_series
     baseline: float | None = None
 
-    if last_stats and last_stats.get(statistic_id):
+    # `series` may be empty when Techem returns nothing for the recent window;
+    # fall through to a rebuild rather than indexing into it.
+    if series and last_stats and last_stats.get(statistic_id):
         baseline = await _async_sum_before(hass, statistic_id, series[0][0])
 
     if baseline is None:
@@ -91,9 +93,7 @@ async def async_import_statistics(
         try:
             series = await _async_fetch_full_history(client, object_id, quantity)
         except TechemError as err:
-            _LOGGER.warning(
-                "Could not backfill history for %s: %s", statistic_id, err
-            )
+            _LOGGER.warning("Could not backfill history for %s: %s", statistic_id, err)
             return
         baseline = 0.0
 

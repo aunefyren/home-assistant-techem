@@ -6,6 +6,7 @@ actually produced, rather than shapes we imagined. This reads
 techem-probe-scrubbed.json and writes tests/fixtures/api_responses.json with
 the placeholder identifiers swapped for stable, obviously fake ones.
 """
+
 from __future__ import annotations
 
 import json
@@ -51,6 +52,7 @@ def defake(obj):
 
 
 def main() -> int:
+    """Write the fixture file from a probe dump."""
     src = pathlib.Path("techem-probe-scrubbed.json")
     if not src.exists():
         print(f"{src} not found; run dev/probe_api.py first", file=sys.stderr)
@@ -79,8 +81,12 @@ def main() -> int:
 
     out["me"] = grab("me")
 
-    for quantity in ("cold-water-volume", "hot-water-volume", "heat-energy",
-                     "total-water-volume"):
+    for quantity in (
+        "cold-water-volume",
+        "hot-water-volume",
+        "heat-energy",
+        "total-water-volume",
+    ):
         if (kpis := grab(f"u0.kpis.{quantity}")) is not None:
             out.setdefault("kpis", {})[quantity] = kpis
         for resolution in ("day", "hour", "month"):

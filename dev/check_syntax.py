@@ -7,17 +7,18 @@ the only construct the old parser chokes on is PEP 695 (`type X = ...`), which
 is rewritten to a plain assignment before parsing. This checks syntax only --
 hassfest in CI is still the real gate.
 """
+
 from __future__ import annotations
 
 import ast
 import pathlib
 import re
-import sys
 
 TYPE_ALIAS = re.compile(r"^type\s+(\w+)\s*=", re.MULTILINE)
 
 
 def main() -> int:
+    """Parse every integration module and report failures."""
     root = pathlib.Path("custom_components/techem")
     failed = False
 

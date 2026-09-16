@@ -6,8 +6,8 @@ import logging
 import re
 from typing import Any
 
+import homeassistant.helpers.config_validation as cv
 import voluptuous as vol
-
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
@@ -22,7 +22,6 @@ from homeassistant.const import (
 )
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-import homeassistant.helpers.config_validation as cv
 from homeassistant.helpers.selector import (
     SelectSelector,
     SelectSelectorConfig,
@@ -30,16 +29,16 @@ from homeassistant.helpers.selector import (
 )
 
 from .api import TechemAuthError, TechemClient, TechemError
-from .discovery import unit_label
 from .const import (
     CONF_OBJECT_ID,
     DEFAULT_API_HOST,
     DEFAULT_SCAN_INTERVAL_HOURS,
-    KNOWN_HOSTS,
     DOMAIN,
+    KNOWN_HOSTS,
     MAX_SCAN_INTERVAL_HOURS,
     MIN_SCAN_INTERVAL_HOURS,
 )
+from .discovery import unit_label
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -145,8 +144,11 @@ class TechemConfigFlow(ConfigFlow, domain=DOMAIN):
         """Pick a unit when the account has more than one."""
         if user_input is not None:
             chosen = next(
-                (u for u in self._units
-                 if str(u.get("id")) == user_input[CONF_OBJECT_ID]),
+                (
+                    u
+                    for u in self._units
+                    if str(u.get("id")) == user_input[CONF_OBJECT_ID]
+                ),
                 None,
             )
             if chosen is not None:
@@ -165,9 +167,7 @@ class TechemConfigFlow(ConfigFlow, domain=DOMAIN):
         object_id = str(unit.get("id"))
         # Qualify with the host so the same unit id on two country servers
         # cannot collide.
-        await self.async_set_unique_id(
-            f"{self._credentials[CONF_HOST]}:{object_id}"
-        )
+        await self.async_set_unique_id(f"{self._credentials[CONF_HOST]}:{object_id}")
         self._abort_if_unique_id_configured()
 
         return self.async_create_entry(
@@ -175,9 +175,7 @@ class TechemConfigFlow(ConfigFlow, domain=DOMAIN):
             data={**self._credentials, CONF_OBJECT_ID: object_id},
         )
 
-    async def async_step_reauth(
-        self, entry_data: dict[str, Any]
-    ) -> ConfigFlowResult:
+    async def async_step_reauth(self, entry_data: dict[str, Any]) -> ConfigFlowResult:
         """Start reauthentication after the stored password stopped working."""
         return await self.async_step_reauth_confirm()
 
@@ -234,8 +232,9 @@ class TechemOptionsFlow(OptionsFlow):
                 {
                     vol.Required(CONF_SCAN_INTERVAL, default=current): vol.All(
                         vol.Coerce(int),
-                        vol.Range(min=MIN_SCAN_INTERVAL_HOURS,
-                                  max=MAX_SCAN_INTERVAL_HOURS),
+                        vol.Range(
+                            min=MIN_SCAN_INTERVAL_HOURS, max=MAX_SCAN_INTERVAL_HOURS
+                        ),
                     )
                 }
             ),

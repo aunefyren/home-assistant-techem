@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 import pathlib
 import time
 from datetime import date, datetime
@@ -32,10 +33,20 @@ from .const import (
 
 FIXTURES = pathlib.Path(__file__).parent / "fixtures"
 
+# pytest-homeassistant-custom-component turns SQLAlchemy's statement logging on
+# at INFO, which buries the test results under the recorder's inserts. This
+# module is imported after that plugin, so the level set here wins.
+logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
+
 
 @pytest.fixture(autouse=True)
-def auto_enable_custom_integrations(enable_custom_integrations):
-    """Make the custom component loadable in every test."""
+def auto_setup(recorder_mock, enable_custom_integrations):
+    """Prepare every test to load and set up this integration.
+
+    `recorder_mock` is requested first on purpose: the integration declares
+    the recorder as a dependency, and the recorder's database fixture asserts
+    that it is built before `hass` exists.
+    """
     return
 
 
@@ -60,7 +71,7 @@ def daily_history(responses: dict[str, Any], quantity: str) -> list[tuple[date, 
     values = graph["graphs"][0]["consumption"]["values"]
     return [
         (datetime.fromisoformat(timestamp).date(), value)
-        for timestamp, value in zip(graph["timestamps"], values)
+        for timestamp, value in zip(graph["timestamps"], values, strict=False)
         if value is not None
     ]
 
@@ -69,16 +80,20 @@ class FakeResponse:
     """Minimal stand-in for an aiohttp response."""
 
     def __init__(self, status: int, payload: Any) -> None:
+        """Store the status and body this response will return."""
         self.status = status
         self._payload = payload
 
     async def json(self) -> Any:
+        """Return the decoded body."""
         return self._payload
 
     async def text(self) -> str:
+        """Return the body as text."""
         return json.dumps(self._payload)
 
     def raise_for_status(self) -> None:
+        """Raise the way aiohttp does for error statuses."""
         if self.status >= 400:
             import aiohttp
 
@@ -87,9 +102,11 @@ class FakeResponse:
             )
 
     async def __aenter__(self) -> FakeResponse:
+        """Enter the response context."""
         return self
 
     async def __aexit__(self, *args: object) -> None:
+        """Leave the response context."""
         return
 
 
@@ -97,6 +114,7 @@ class TechemApiMock:
     """Answers GraphQL requests the way the real endpoint does."""
 
     def __init__(self, responses: dict[str, Any]) -> None:
+        """Prepare the endpoint from captured responses."""
         self.responses = responses
         self.calls: list[dict[str, Any]] = []
         self.headers: list[dict[str, str]] = []
@@ -118,6 +136,7 @@ class TechemApiMock:
     # -- request handling -------------------------------------------------
 
     def post(self, url: str, **kwargs: Any) -> FakeResponse:
+        """Answer one GraphQL request."""
         payload = kwargs.get("json") or {}
         self.calls.append(payload)
         self.headers.append(dict(kwargs.get("headers") or {}))
@@ -134,8 +153,9 @@ class TechemApiMock:
         if "refreshToken(" in query:
             return self._refresh()
         if self.query_error:
-            return FakeResponse(200, {"data": None, "errors": [
-                {"message": self.query_error}]})
+            return FakeResponse(
+                200, {"data": None, "errors": [{"message": self.query_error}]}
+            )
         if "me {" in query:
             return FakeResponse(200, {"data": self.responses["me"]})
         if "tenantUnits" in query:
@@ -145,26 +165,46 @@ class TechemApiMock:
         if "tenantGraph" in query:
             return self._graph(variables)
 
-        return FakeResponse(200, {"data": None, "errors": [
-            {"message": f"unhandled query: {query[:60]}"}]})
+        return FakeResponse(
+            200,
+            {"data": None, "errors": [{"message": f"unhandled query: {query[:60]}"}]},
+        )
 
     # -- individual operations -------------------------------------------
 
     def _login(self) -> FakeResponse:
         self.login_count += 1
         if self.login_error:
-            return FakeResponse(200, {"data": None, "errors": [
-                {"message": self.login_error}]})
-        return FakeResponse(200, {"data": {"loginWithEmailAndPassword": {
-            "ok": {"token": make_jwt(), "refreshToken": "refresh-token"}}}})
+            return FakeResponse(
+                200, {"data": None, "errors": [{"message": self.login_error}]}
+            )
+        return FakeResponse(
+            200,
+            {
+                "data": {
+                    "loginWithEmailAndPassword": {
+                        "ok": {"token": make_jwt(), "refreshToken": "refresh-token"}
+                    }
+                }
+            },
+        )
 
     def _refresh(self) -> FakeResponse:
         self.refresh_count += 1
         if self.refresh_fails:
-            return FakeResponse(200, {"data": None, "errors": [
-                {"message": "invalid-token"}]})
-        return FakeResponse(200, {"data": {"refreshToken": {
-            "ok": {"token": make_jwt(), "refreshToken": "refresh-token-2"}}}})
+            return FakeResponse(
+                200, {"data": None, "errors": [{"message": "invalid-token"}]}
+            )
+        return FakeResponse(
+            200,
+            {
+                "data": {
+                    "refreshToken": {
+                        "ok": {"token": make_jwt(), "refreshToken": "refresh-token-2"}
+                    }
+                }
+            },
+        )
 
     def _kpis(self, variables: dict[str, Any]) -> FakeResponse:
         quantity = (variables.get("input") or {}).get("quantity")
@@ -186,46 +226,61 @@ class TechemApiMock:
             for day, value in self.history.get(quantity, [])
             if begin <= day <= end
         ]
-        return FakeResponse(200, {"data": {"tenantGraph": {
-            "timestamps": [f"{day.isoformat()}T00:00:00" for day, _ in points],
-            "graphs": [{"consumption": {
-                "quantityDescriptor": {"quantity": quantity},
-                "values": [value for _, value in points],
-            }}],
-        }}})
+        return FakeResponse(
+            200,
+            {
+                "data": {
+                    "tenantGraph": {
+                        "timestamps": [
+                            f"{day.isoformat()}T00:00:00" for day, _ in points
+                        ],
+                        "graphs": [
+                            {
+                                "consumption": {
+                                    "quantityDescriptor": {"quantity": quantity},
+                                    "values": [value for _, value in points],
+                                }
+                            }
+                        ],
+                    }
+                }
+            },
+        )
 
 
 class FakeSession:
     """aiohttp session stand-in that routes everything to TechemApiMock."""
 
     def __init__(self, api: TechemApiMock) -> None:
+        """Wrap a fake endpoint in a session-shaped object."""
         self.api = api
 
     def post(self, url: str, **kwargs: Any) -> FakeResponse:
+        """Route a request to the fake endpoint."""
         return self.api.post(url, **kwargs)
 
 
 @pytest.fixture
 def api_responses() -> dict[str, Any]:
-    """The captured API responses."""
+    """Return the API responses captured from a real account."""
     return load_responses()
 
 
 @pytest.fixture
 def api(api_responses: dict[str, Any]) -> TechemApiMock:
-    """A configurable fake Techem endpoint."""
+    """Return a configurable fake Techem endpoint."""
     return TechemApiMock(api_responses)
 
 
 @pytest.fixture
 def session(api: TechemApiMock) -> FakeSession:
-    """A fake aiohttp session backed by the fake endpoint."""
+    """Return a fake aiohttp session backed by the fake endpoint."""
     return FakeSession(api)
 
 
 @pytest.fixture
 def mock_config_entry() -> MockConfigEntry:
-    """A config entry for the fixture unit."""
+    """Return a config entry for the fixture unit."""
     return MockConfigEntry(
         domain=DOMAIN,
         title="Testveien 1A",

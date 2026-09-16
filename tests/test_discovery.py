@@ -6,7 +6,16 @@ from custom_components.techem.api import TechemClient
 from custom_components.techem.discovery import async_validate_quantities, unit_label
 
 from .conftest import FakeSession, TechemApiMock
-from .const import COLD, HEAT, HOT, MOCK_EMAIL, MOCK_HOST, MOCK_OBJECT_ID, MOCK_PASSWORD, TOTAL_WATER
+from .const import (
+    COLD,
+    HEAT,
+    HOT,
+    MOCK_EMAIL,
+    MOCK_HOST,
+    MOCK_OBJECT_ID,
+    MOCK_PASSWORD,
+    TOTAL_WATER,
+)
 
 
 async def test_phantom_quantity_is_dropped(
@@ -19,7 +28,8 @@ async def test_phantom_quantity_is_dropped(
     client = TechemClient(session, MOCK_HOST, MOCK_EMAIL, MOCK_PASSWORD)
     await client.async_login()
 
-    advertised = api_responses["tenantUnits"]["tenantUnits"][0]["treeInfo"]["quantities"]
+    unit = api_responses["tenantUnits"]["tenantUnits"][0]
+    advertised = unit["treeInfo"]["quantities"]
     assert TOTAL_WATER in advertised, "fixture should still advertise the phantom"
 
     usable = await async_validate_quantities(client, MOCK_OBJECT_ID, advertised)
@@ -52,10 +62,15 @@ async def test_probe_failure_skips_quantity(
 
 def test_unit_label_uses_available_fields() -> None:
     """Labels are built from whatever the unit actually populates."""
-    assert unit_label({
-        "id": "x",
-        "unit": {"street": "Testveien", "unitNumber": "H0101"},
-    }) == "Testveien H0101"
+    assert (
+        unit_label(
+            {
+                "id": "x",
+                "unit": {"street": "Testveien", "unitNumber": "H0101"},
+            }
+        )
+        == "Testveien H0101"
+    )
 
 
 def test_unit_label_falls_back_to_id() -> None:

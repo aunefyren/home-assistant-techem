@@ -2,6 +2,10 @@
 asyncio_mode = "auto"
 testpaths = ["tests"]
 norecursedirs = ["dev"]
+# The recorder's in-memory database logs every statement at INFO, which buries
+# the actual test results.
+log_level = "WARNING"
+log_cli_level = "WARNING"
 
 [tool.ruff]
 target-version = "py313"

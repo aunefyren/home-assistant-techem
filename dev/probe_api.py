@@ -16,6 +16,7 @@ Usage:
     TECHEM_EMAIL=you@example.com TECHEM_HOST=techemadmin.dk python3 dev/probe_api.py
     (password is prompted for, never taken from argv)
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -36,16 +37,34 @@ UA = "ha-techem-probe/0.1 (+https://github.com/aunefyren/home-assistant-techem)"
 # Keys whose values identify you, your home, or your meters. Redacted in the
 # shared dump; consumption numbers are deliberately kept.
 REDACT_KEYS = {
-    "token", "refreshToken", "email", "name", "address", "street", "location",
-    "city", "zipcode", "number", "unitNumber", "wmbusId", "tepdid",
-    "externalIdentifier", "id", "ModelId",
+    "token",
+    "refreshToken",
+    "email",
+    "name",
+    "address",
+    "street",
+    "location",
+    "city",
+    "zipcode",
+    "number",
+    "unitNumber",
+    "wmbusId",
+    "tepdid",
+    "externalIdentifier",
+    "id",
+    "ModelId",
 }
 
 _redactions: dict[str, str] = {}
 
 
-def post(query: str, variables: dict | None = None, token: str | None = None,
-         timeout: int = 90) -> dict:
+def post(
+    query: str,
+    variables: dict | None = None,
+    token: str | None = None,
+    timeout: int = 90,
+) -> dict:
+    """Send one GraphQL request and return the decoded body."""
     body = json.dumps({"query": query, "variables": variables or {}}).encode()
     headers = {
         "Content-Type": "application/json",
@@ -62,7 +81,7 @@ def post(query: str, variables: dict | None = None, token: str | None = None,
             return json.loads(resp.read().decode())
     except urllib.error.HTTPError as err:
         return {"_httpError": err.code, "_body": err.read().decode()[:2000]}
-    except Exception as err:  # noqa: BLE001 - probe script, report and move on
+    except Exception as err:
         return {"_error": repr(err)}
 
 
@@ -73,16 +92,18 @@ def redact(obj, key: str | None = None):
     if isinstance(obj, list):
         return [redact(v, key) for v in obj]
     if key in REDACT_KEYS and isinstance(obj, (str, int)) and obj != "":
-        token = f"<{key}:{_redactions.setdefault(f'{key}:{obj}', str(len(_redactions)))}>"
-        return token
+        index = _redactions.setdefault(f"{key}:{obj}", str(len(_redactions)))
+        return f"<{key}:{index}>"
     return obj
 
 
 def day(offset: int) -> str:
+    """Return an API timestamp for `offset` days ago."""
     return (dt.date.today() - dt.timedelta(days=offset)).isoformat() + "T00:00:00"
 
 
 def jan1(years_ago: int = 0) -> str:
+    """Return an API timestamp for 1 January."""
     return f"{dt.date.today().year - years_ago}-01-01T00:00:00"
 
 
@@ -143,7 +164,11 @@ query TenantTable($table: TenantTableInput!) {
     rows {
       values
       comparisonValues
-      object { id measurementPoint { id name quantity room } unit { id name unitNumber } }
+      object {
+        id
+        measurementPoint { id name quantity room }
+        unit { id name unitNumber }
+      }
     }
   }
 }
@@ -208,6 +233,7 @@ query Alarms($forObjectId: ID!) {
 
 
 def main() -> int:
+    """Run the probe and write the dumps."""
     email = os.environ.get("TECHEM_EMAIL") or input("Techem email: ").strip()
     password = os.environ.get("TECHEM_PASSWORD") or getpass.getpass("Techem password: ")
 
@@ -217,8 +243,16 @@ def main() -> int:
     }
 
     print("logging in...", file=sys.stderr)
-    login = post(LOGIN, {"credentials": {
-        "username": email, "password": password, "targetResource": "tenant"}})
+    login = post(
+        LOGIN,
+        {
+            "credentials": {
+                "username": email,
+                "password": password,
+                "targetResource": "tenant",
+            }
+        },
+    )
     try:
         creds = login["data"]["loginWithEmailAndPassword"]["ok"]
         token = creds["token"]
@@ -229,10 +263,11 @@ def main() -> int:
     # Does the JWT carry an expiry we can schedule refreshes against?
     try:
         import base64
+
         payload = token.split(".")[1]
         payload += "=" * (-len(payload) % 4)
         out["tokenClaims"] = json.loads(base64.urlsafe_b64decode(payload))
-    except Exception as err:  # noqa: BLE001
+    except Exception as err:
         out["tokenClaims"] = {"_error": repr(err)}
 
     def call(label: str, query: str, variables: dict | None = None) -> dict:
@@ -255,13 +290,22 @@ def main() -> int:
         # units does not cost us the rest of the probe.
         manual = os.environ.get("TECHEM_OBJECT_ID")
         if manual:
-            print(f"tenantUnits gave nothing; using TECHEM_OBJECT_ID={manual}",
-                  file=sys.stderr)
-            unit_objs = [{"id": manual, "treeInfo": {"quantities": [
-                "ENERGY", "HOT_WATER", "COLD_WATER"]}}]
+            print(
+                f"tenantUnits gave nothing; using TECHEM_OBJECT_ID={manual}",
+                file=sys.stderr,
+            )
+            unit_objs = [
+                {
+                    "id": manual,
+                    "treeInfo": {"quantities": ["ENERGY", "HOT_WATER", "COLD_WATER"]},
+                }
+            ]
         else:
-            print("could not read tenantUnits; see dump. Re-run with "
-                  "TECHEM_OBJECT_ID=<id> to probe a known unit.", file=sys.stderr)
+            print(
+                "could not read tenantUnits; see dump. Re-run with "
+                "TECHEM_OBJECT_ID=<id> to probe a known unit.",
+                file=sys.stderr,
+            )
 
     for idx, u in enumerate(unit_objs):
         oid = str(u.get("id"))
@@ -276,36 +320,91 @@ def main() -> int:
             quantities = ["ENERGY", "HOT_WATER", "COLD_WATER"]
 
         # Table: year to date vs last year, and the last full week.
-        call(f"u{idx}.table.ytd", TABLE, {"table": {
-            "aggregationLevel": "UNIT", "objectId": oid,
-            "periodBegin": jan1(), "periodEnd": day(1),
-            "compareWith": "previous-year"}})
-        call(f"u{idx}.table.week", TABLE, {"table": {
-            "aggregationLevel": "UNIT", "objectId": oid,
-            "periodBegin": day(8), "periodEnd": day(1),
-            "compareWith": "previous-period"}})
+        call(
+            f"u{idx}.table.ytd",
+            TABLE,
+            {
+                "table": {
+                    "aggregationLevel": "UNIT",
+                    "objectId": oid,
+                    "periodBegin": jan1(),
+                    "periodEnd": day(1),
+                    "compareWith": "previous-year",
+                }
+            },
+        )
+        call(
+            f"u{idx}.table.week",
+            TABLE,
+            {
+                "table": {
+                    "aggregationLevel": "UNIT",
+                    "objectId": oid,
+                    "periodBegin": day(8),
+                    "periodEnd": day(1),
+                    "compareWith": "previous-period",
+                }
+            },
+        )
         # Does a finer aggregation level break the rows out per meter?
-        call(f"u{idx}.table.mpoint", TABLE, {"table": {
-            "aggregationLevel": "MPOINT", "objectId": oid,
-            "periodBegin": day(8), "periodEnd": day(1),
-            "compareWith": "previous-period"}})
+        call(
+            f"u{idx}.table.mpoint",
+            TABLE,
+            {
+                "table": {
+                    "aggregationLevel": "MPOINT",
+                    "objectId": oid,
+                    "periodBegin": day(8),
+                    "periodEnd": day(1),
+                    "compareWith": "previous-period",
+                }
+            },
+        )
 
         # Can a tenant read prices and alarm notifications, or are these
         # manager-only like the object tree?
-        call(f"u{idx}.notifications", _NOTIFICATIONS, {"input": {
-            "objectId": oid, "periodBegin": jan1(1), "periodEnd": day(0),
-            "onlyUnresolved": False, "includeObjectChildren": True}})
+        call(
+            f"u{idx}.notifications",
+            _NOTIFICATIONS,
+            {
+                "input": {
+                    "objectId": oid,
+                    "periodBegin": jan1(1),
+                    "periodEnd": day(0),
+                    "onlyUnresolved": False,
+                    "includeObjectChildren": True,
+                }
+            },
+        )
         call(f"u{idx}.alarms", _ALARMS, {"forObjectId": oid})
 
         for q in quantities:
-            call(f"u{idx}.prices.{q}", _PRICES, {"input": {
-                "objectId": oid, "quantity": q,
-                "periodBegin": jan1(1), "periodEnd": day(0)}})
+            call(
+                f"u{idx}.prices.{q}",
+                _PRICES,
+                {
+                    "input": {
+                        "objectId": oid,
+                        "quantity": q,
+                        "periodBegin": jan1(1),
+                        "periodEnd": day(0),
+                    }
+                },
+            )
 
-            call(f"u{idx}.kpis.{q}", KPIS, {"input": {
-                "objectId": oid, "quantity": q,
-                "periodBegin": jan1(), "periodEnd": day(1),
-                "compareWith": "previous-year"}})
+            call(
+                f"u{idx}.kpis.{q}",
+                KPIS,
+                {
+                    "input": {
+                        "objectId": oid,
+                        "quantity": q,
+                        "periodBegin": jan1(),
+                        "periodEnd": day(1),
+                        "compareWith": "previous-year",
+                    }
+                },
+            )
 
             # The statistics-backfill question: how fine can we resolve, and
             # how far back does history go?
@@ -314,12 +413,29 @@ def main() -> int:
                 ("day", "DAY", day(35), day(0)),
                 ("month", "MONTH", jan1(1), day(0)),
             ):
-                call(f"u{idx}.graph.{q}.{label}", GRAPH, {"graph": {
-                    "objectId": oid, "resolution": res,
-                    "periodBegin": begin, "periodEnd": end,
-                    "consumption": {"evaluateOperational": True, "series": [
-                        {"quantityDescriptor": {"quantity": q, "normalized": False}}]},
-                }})
+                call(
+                    f"u{idx}.graph.{q}.{label}",
+                    GRAPH,
+                    {
+                        "graph": {
+                            "objectId": oid,
+                            "resolution": res,
+                            "periodBegin": begin,
+                            "periodEnd": end,
+                            "consumption": {
+                                "evaluateOperational": True,
+                                "series": [
+                                    {
+                                        "quantityDescriptor": {
+                                            "quantity": q,
+                                            "normalized": False,
+                                        }
+                                    }
+                                ],
+                            },
+                        }
+                    },
+                )
 
     with open("techem-probe-raw.json", "w") as fh:
         json.dump(out, fh, indent=2, ensure_ascii=False)
@@ -331,8 +447,11 @@ def main() -> int:
     with open("techem-probe-scrubbed.json", "w") as fh:
         json.dump(scrubbed, fh, indent=2, ensure_ascii=False)
 
-    print("\nwrote techem-probe-raw.json (private) and "
-          "techem-probe-scrubbed.json (shareable)", file=sys.stderr)
+    print(
+        "\nwrote techem-probe-raw.json (private) and "
+        "techem-probe-scrubbed.json (shareable)",
+        file=sys.stderr,
+    )
     return 0
 
 

@@ -19,6 +19,7 @@ from .const import HOT, MOCK_EMAIL, MOCK_HOST, MOCK_OBJECT_ID, MOCK_PASSWORD
 
 
 def build(session: FakeSession, host: str = MOCK_HOST) -> TechemClient:
+    """Build a client against the fake session."""
     return TechemClient(session, host, MOCK_EMAIL, MOCK_PASSWORD)
 
 
@@ -72,9 +73,7 @@ async def test_http_error_maps_to_connection_error(
         await build(session).async_login()
 
 
-async def test_401_maps_to_auth_error(
-    session: FakeSession, api: TechemApiMock
-) -> None:
+async def test_401_maps_to_auth_error(session: FakeSession, api: TechemApiMock) -> None:
     """An unauthorised response is an auth failure."""
     api.status = 401
     with pytest.raises(TechemAuthError):
@@ -126,7 +125,9 @@ async def test_url_and_headers(session: FakeSession, api: TechemApiMock) -> None
     assert headers["Origin"] == "https://beboer.techemadmin.no"
 
 
-async def test_unknown_host_omits_origin(session: FakeSession, api: TechemApiMock) -> None:
+async def test_unknown_host_omits_origin(
+    session: FakeSession, api: TechemApiMock
+) -> None:
     """For hosts whose portal we do not know, Origin is left off entirely."""
     await build(session, host="techemadmin.dk").async_login()
 

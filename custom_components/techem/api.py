@@ -25,7 +25,9 @@ REQUEST_TIMEOUT = aiohttp.ClientTimeout(total=90)
 
 # Techem's own portal is the only other consumer of this API; identify
 # ourselves honestly rather than impersonating a browser.
-USER_AGENT = "home-assistant-techem (+https://github.com/aunefyren/home-assistant-techem)"
+USER_AGENT = (
+    "home-assistant-techem (+https://github.com/aunefyren/home-assistant-techem)"
+)
 
 _LOGIN = """
 mutation Login($credentials: CredentialsInput!) {
@@ -131,8 +133,9 @@ class TechemClient:
         self._token_expires: datetime | None = None
         self._lock = asyncio.Lock()
 
-    async def _post(self, query: str, variables: dict[str, Any] | None,
-                    token: str | None) -> dict[str, Any]:
+    async def _post(
+        self, query: str, variables: dict[str, Any] | None, token: str | None
+    ) -> dict[str, Any]:
         """Send one GraphQL request and return its `data` payload."""
         headers = {
             "Content-Type": "application/json",
@@ -159,7 +162,7 @@ class TechemClient:
             raise
         except aiohttp.ClientResponseError as err:
             raise TechemConnectionError(f"HTTP {err.status} from Techem") from err
-        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+        except (TimeoutError, aiohttp.ClientError) as err:
             raise TechemConnectionError(f"Could not reach Techem: {err}") from err
         except ValueError as err:
             raise TechemError("Techem returned a malformed response") from err
@@ -309,8 +312,12 @@ class TechemClient:
                     "consumption": {
                         "evaluateOperational": True,
                         "series": [
-                            {"quantityDescriptor": {
-                                "quantity": quantity, "normalized": False}}
+                            {
+                                "quantityDescriptor": {
+                                    "quantity": quantity,
+                                    "normalized": False,
+                                }
+                            }
                         ],
                     },
                 }
@@ -324,7 +331,8 @@ class TechemClient:
             consumption = (entry or {}).get("consumption")
             # `consumption` is an object here, but tolerate a list in case the
             # multi-series form ever comes back.
-            for series in consumption if isinstance(consumption, list) else [consumption]:
+            candidates = consumption if isinstance(consumption, list) else [consumption]
+            for series in candidates:
                 if not series:
                     continue
                 descriptor = series.get("quantityDescriptor") or {}
@@ -336,8 +344,20 @@ class TechemClient:
             if values:
                 break
 
+        if len(timestamps) != len(values):
+            # Not fatal -- the pairs that do line up are still correct -- but
+            # it means Techem returned a shape we do not understand.
+            _LOGGER.warning(
+                "Techem returned %d timestamps but %d values for %s; "
+                "using the %d that pair up",
+                len(timestamps),
+                len(values),
+                quantity,
+                min(len(timestamps), len(values)),
+            )
+
         result: list[tuple[date, float]] = []
-        for timestamp, value in zip(timestamps, values):
+        for timestamp, value in zip(timestamps, values, strict=False):
             if value is None or not isinstance(value, (int, float)):
                 continue
             try:

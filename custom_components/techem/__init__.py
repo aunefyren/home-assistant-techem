@@ -18,9 +18,9 @@ from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryNotReady
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import TechemAuthError, TechemClient, TechemError
-from .discovery import async_validate_quantities
 from .const import CONF_OBJECT_ID, DEFAULT_API_HOST, DEFAULT_SCAN_INTERVAL_HOURS
 from .coordinator import TechemCoordinator
+from .discovery import async_validate_quantities
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -83,8 +83,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: TechemConfigEntry) -> b
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
-async def _async_update_listener(
-    hass: HomeAssistant, entry: TechemConfigEntry
-) -> None:
+async def _async_update_listener(hass: HomeAssistant, entry: TechemConfigEntry) -> None:
     """Reload when the poll interval changes."""
     await hass.config_entries.async_reload(entry.entry_id)

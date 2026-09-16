@@ -134,9 +134,7 @@ async def async_setup_entry(
     for key in coordinator.quantities:
         quantity = QUANTITIES[key]
         for description in (*SENSORS, READING_DATE):
-            entities.append(
-                TechemSensor(coordinator, entry, quantity, description)
-            )
+            entities.append(TechemSensor(coordinator, entry, quantity, description))
 
     async_add_entities(entities)
 
@@ -196,9 +194,7 @@ class TechemSensor(CoordinatorEntity[TechemCoordinator], SensorEntity):
             return None
 
         attributes: dict[str, object] = {
-            "statistic_id": statistic_id_for(
-                self.coordinator.object_id, self._quantity
-            )
+            "statistic_id": statistic_id_for(self.coordinator.object_id, self._quantity)
         }
         if data.rooms:
             attributes["rooms"] = data.rooms

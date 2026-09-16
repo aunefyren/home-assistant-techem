@@ -161,6 +161,17 @@ when Techem stops accepting the stored one.
 python3 -m pip install -r requirements_test.txt
 pytest tests
 ruff check custom_components tests dev
+ruff format --check custom_components tests dev
+```
+
+Home Assistant needs Python 3.13. If your system Python is older, [uv](https://github.com/astral-sh/uv)
+can provide one without root:
+
+```bash
+uv python install 3.13
+uv venv --python 3.13 .venv
+uv pip install --python .venv/bin/python -r requirements_test.txt
+.venv/bin/python -m pytest tests
 ```
 
 The test fixtures in `tests/fixtures/` are generated from a redacted
