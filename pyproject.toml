@@ -1,0 +1,34 @@
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+norecursedirs = ["dev"]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # import sorting
+    "B",    # bugbear
+    "UP",   # pyupgrade
+    "SIM",  # simplify
+    "RUF",  # ruff-specific
+    "ASYNC",
+    "D",    # docstrings, as Home Assistant requires
+]
+ignore = [
+    "D202",  # no blank lines after docstring, conflicts with formatting
+    "D203",
+    "D213",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests reach into client internals deliberately to force token expiry.
+"tests/*" = ["SLF001"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"

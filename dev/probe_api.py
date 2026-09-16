@@ -177,6 +177,36 @@ query TenantGraph($graph: TenantGraphInput!) {
 """
 
 
+_PRICES = """
+query Prices($input: QuantityPriceInput!) {
+  quantityPrices(input: $input) {
+    quantity price currency validFrom validTo
+  }
+}
+"""
+
+_NOTIFICATIONS = """
+query Notifications($input: NotificationsInput!) {
+  notifications(input: $input) {
+    id createdAt resolvedAt
+    alarmNotification {
+      triggerValue
+      alarm { id name quantity period enabled }
+      evaluatedPeriod { startDate endDate }
+    }
+  }
+}
+"""
+
+_ALARMS = """
+query Alarms($forObjectId: ID!) {
+  alarms(forObjectId: $forObjectId) {
+    id name quantity period enabled excludedHere notApplicableHere
+  }
+}
+"""
+
+
 def main() -> int:
     email = os.environ.get("TECHEM_EMAIL") or input("Techem email: ").strip()
     password = os.environ.get("TECHEM_PASSWORD") or getpass.getpass("Techem password: ")
@@ -260,7 +290,18 @@ def main() -> int:
             "periodBegin": day(8), "periodEnd": day(1),
             "compareWith": "previous-period"}})
 
+        # Can a tenant read prices and alarm notifications, or are these
+        # manager-only like the object tree?
+        call(f"u{idx}.notifications", _NOTIFICATIONS, {"input": {
+            "objectId": oid, "periodBegin": jan1(1), "periodEnd": day(0),
+            "onlyUnresolved": False, "includeObjectChildren": True}})
+        call(f"u{idx}.alarms", _ALARMS, {"forObjectId": oid})
+
         for q in quantities:
+            call(f"u{idx}.prices.{q}", _PRICES, {"input": {
+                "objectId": oid, "quantity": q,
+                "periodBegin": jan1(1), "periodEnd": day(0)}})
+
             call(f"u{idx}.kpis.{q}", KPIS, {"input": {
                 "objectId": oid, "quantity": q,
                 "periodBegin": jan1(), "periodEnd": day(1),

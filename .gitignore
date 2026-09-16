@@ -156,3 +156,10 @@ CLAUDE.md
 
 # API probe dumps
 techem-probe-*.json
+
+# Test artefacts
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.ruff_cache/

@@ -156,6 +156,28 @@ when Techem stops accepting the stored one.
 <br>
 <br>
 
+## Development
+```bash
+python3 -m pip install -r requirements_test.txt
+pytest tests
+ruff check custom_components tests dev
+```
+
+The test fixtures in `tests/fixtures/` are generated from a redacted
+`dev/probe_api.py` run by `dev/make_fixtures.py`, so the suite exercises
+response shapes the real API actually produced. To refresh them against your
+own account, run the probe and then:
+
+```bash
+python3 dev/make_fixtures.py
+```
+
+`dev/docker-compose.yml` starts a throwaway Home Assistant with the integration
+mounted, for testing against a real account.
+
+<br>
+<br>
+
 ## Credits
 The private GraphQL endpoint was originally documented by
 [@khaffner](https://github.com/khaffner)'s shell script and
