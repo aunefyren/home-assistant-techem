@@ -1,0 +1,13 @@
+{
+  "domain": "techem",
+  "name": "Techem",
+  "codeowners": ["@aunefyren"],
+  "config_flow": true,
+  "dependencies": ["recorder"],
+  "documentation": "https://github.com/aunefyren/home-assistant-techem",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/aunefyren/home-assistant-techem/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

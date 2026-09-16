@@ -1,0 +1,129 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Techem",
+        "description": "Sign in with your beboer.techemadmin.no account.",
+        "data": {
+          "email": "Email",
+          "password": "Password",
+          "host": "Techem server"
+        },
+        "data_description": {
+          "host": "The Techem country server your portal uses. Pick from the list or type another hostname. Note that mieter.techem.de is a different platform and is not supported."
+        }
+      },
+      "unit": {
+        "title": "Select unit",
+        "description": "This account has access to more than one unit.",
+        "data": {
+          "object_id": "Unit"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate with Techem",
+        "description": "The password for {email} is no longer accepted.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid email or password.",
+      "cannot_connect": "Could not reach Techem. Try again later.",
+      "no_units": "This account has no units with metering data.",
+      "invalid_host": "That is not a valid Techem server hostname."
+    },
+    "abort": {
+      "already_configured": "This unit is already configured.",
+      "reauth_successful": "Re-authentication was successful."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Techem options",
+        "description": "Techem meters report once a day and readings arrive about two days late, so polling more often changes nothing.",
+        "data": {
+          "scan_interval": "Hours between updates"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "cold_water_year_to_date": {
+        "name": "Cold water this year"
+      },
+      "cold_water_previous_year": {
+        "name": "Cold water same period last year"
+      },
+      "cold_water_daily_average": {
+        "name": "Cold water daily average"
+      },
+      "cold_water_last_reading": {
+        "name": "Cold water last reading"
+      },
+      "cold_water_year_change": {
+        "name": "Cold water vs last year"
+      },
+      "cold_water_average_change": {
+        "name": "Cold water vs previous period"
+      },
+      "cold_water_property_comparison": {
+        "name": "Cold water vs building average"
+      },
+      "cold_water_last_reading_date": {
+        "name": "Cold water reading date"
+      },
+      "hot_water_year_to_date": {
+        "name": "Hot water this year"
+      },
+      "hot_water_previous_year": {
+        "name": "Hot water same period last year"
+      },
+      "hot_water_daily_average": {
+        "name": "Hot water daily average"
+      },
+      "hot_water_last_reading": {
+        "name": "Hot water last reading"
+      },
+      "hot_water_year_change": {
+        "name": "Hot water vs last year"
+      },
+      "hot_water_average_change": {
+        "name": "Hot water vs previous period"
+      },
+      "hot_water_property_comparison": {
+        "name": "Hot water vs building average"
+      },
+      "hot_water_last_reading_date": {
+        "name": "Hot water reading date"
+      },
+      "heating_year_to_date": {
+        "name": "Heating this year"
+      },
+      "heating_previous_year": {
+        "name": "Heating same period last year"
+      },
+      "heating_daily_average": {
+        "name": "Heating daily average"
+      },
+      "heating_last_reading": {
+        "name": "Heating last reading"
+      },
+      "heating_year_change": {
+        "name": "Heating vs last year"
+      },
+      "heating_average_change": {
+        "name": "Heating vs previous period"
+      },
+      "heating_property_comparison": {
+        "name": "Heating vs building average"
+      },
+      "heating_last_reading_date": {
+        "name": "Heating reading date"
+      }
+    }
+  }
+}

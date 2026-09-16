@@ -1,0 +1,129 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Koble til Techem",
+        "description": "Logg inn med kontoen din på beboer.techemadmin.no.",
+        "data": {
+          "email": "E-postadresse",
+          "password": "Passord",
+          "host": "Techem-server"
+        },
+        "data_description": {
+          "host": "Techem-serveren for landet ditt. Velg fra listen eller skriv inn et annet vertsnavn. Merk at mieter.techem.de er en annen plattform og ikke støttes."
+        }
+      },
+      "unit": {
+        "title": "Velg enhet",
+        "description": "Denne kontoen har tilgang til flere enheter.",
+        "data": {
+          "object_id": "Enhet"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Logg inn på Techem på nytt",
+        "description": "Passordet for {email} godtas ikke lenger.",
+        "data": {
+          "password": "Passord"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Ugyldig e-postadresse eller passord.",
+      "cannot_connect": "Fikk ikke kontakt med Techem. Prøv igjen senere.",
+      "no_units": "Denne kontoen har ingen enheter med måledata.",
+      "invalid_host": "Dette er ikke et gyldig vertsnavn for Techem."
+    },
+    "abort": {
+      "already_configured": "Denne enheten er allerede satt opp.",
+      "reauth_successful": "Innloggingen ble fornyet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Innstillinger for Techem",
+        "description": "Techem-målerne rapporterer én gang i døgnet, og avlesningene kommer omtrent to dager på etterskudd. Hyppigere henting gir derfor ingenting.",
+        "data": {
+          "scan_interval": "Timer mellom oppdateringer"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "cold_water_year_to_date": {
+        "name": "Kaldtvann i år"
+      },
+      "cold_water_previous_year": {
+        "name": "Kaldtvann samme periode i fjor"
+      },
+      "cold_water_daily_average": {
+        "name": "Kaldtvann daglig snitt"
+      },
+      "cold_water_last_reading": {
+        "name": "Kaldtvann siste avlesning"
+      },
+      "cold_water_year_change": {
+        "name": "Kaldtvann mot i fjor"
+      },
+      "cold_water_average_change": {
+        "name": "Kaldtvann mot forrige periode"
+      },
+      "cold_water_property_comparison": {
+        "name": "Kaldtvann mot snittet i bygget"
+      },
+      "cold_water_last_reading_date": {
+        "name": "Kaldtvann avlesningsdato"
+      },
+      "hot_water_year_to_date": {
+        "name": "Varmtvann i år"
+      },
+      "hot_water_previous_year": {
+        "name": "Varmtvann samme periode i fjor"
+      },
+      "hot_water_daily_average": {
+        "name": "Varmtvann daglig snitt"
+      },
+      "hot_water_last_reading": {
+        "name": "Varmtvann siste avlesning"
+      },
+      "hot_water_year_change": {
+        "name": "Varmtvann mot i fjor"
+      },
+      "hot_water_average_change": {
+        "name": "Varmtvann mot forrige periode"
+      },
+      "hot_water_property_comparison": {
+        "name": "Varmtvann mot snittet i bygget"
+      },
+      "hot_water_last_reading_date": {
+        "name": "Varmtvann avlesningsdato"
+      },
+      "heating_year_to_date": {
+        "name": "Oppvarming i år"
+      },
+      "heating_previous_year": {
+        "name": "Oppvarming samme periode i fjor"
+      },
+      "heating_daily_average": {
+        "name": "Oppvarming daglig snitt"
+      },
+      "heating_last_reading": {
+        "name": "Oppvarming siste avlesning"
+      },
+      "heating_year_change": {
+        "name": "Oppvarming mot i fjor"
+      },
+      "heating_average_change": {
+        "name": "Oppvarming mot forrige periode"
+      },
+      "heating_property_comparison": {
+        "name": "Oppvarming mot snittet i bygget"
+      },
+      "heating_last_reading_date": {
+        "name": "Oppvarming avlesningsdato"
+      }
+    }
+  }
+}
