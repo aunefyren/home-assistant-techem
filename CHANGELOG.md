@@ -3,7 +3,7 @@
 All notable changes to this project are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
-## [0.1.0] - Unreleased
+## [0.1.0] - 2026-09-16
 
 First release. A from-scratch Home Assistant integration for the Techem tenant
 portal, replacing the shell-script-and-template approach it grew out of.
