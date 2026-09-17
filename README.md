@@ -7,7 +7,6 @@
 
 # Techem Integration for Home Assistant
 ![GitHub Release](https://img.shields.io/github/v/release/aunefyren/home-assistant-techem?style=for-the-badge)
-![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/aunefyren/home-assistant-techem/total?style=for-the-badge)
 ![GitHub issues](https://img.shields.io/github/issues/aunefyren/home-assistant-techem?style=for-the-badge)
 ![GitHub Repo stars](https://img.shields.io/github/stars/aunefyren/home-assistant-techem?style=for-the-badge)
 ![GitHub forks](https://img.shields.io/github/forks/aunefyren/home-assistant-techem?style=for-the-badge)
