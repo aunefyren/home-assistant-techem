@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="custom_components/techem/brand/dark_logo@2x.png">
+    <img src="custom_components/techem/brand/logo@2x.png" alt="Techem" height="96">
+  </picture>
+</p>
+
 # Techem Integration for Home Assistant
 ![GitHub Release](https://img.shields.io/github/v/release/aunefyren/home-assistant-techem?style=for-the-badge)
 ![GitHub Downloads (all assets, all releases)](https://img.shields.io/github/downloads/aunefyren/home-assistant-techem/total?style=for-the-badge)
