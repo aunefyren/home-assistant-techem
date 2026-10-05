@@ -3,6 +3,16 @@
 All notable changes to this project are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
+## [0.1.2] - 2026-10-05
+
+### Fixed
+- Setup failed with "Cannot query field 'treeInfo' on type 'NObjectType'"
+  after Techem removed `treeInfo` and `UnitType.size` from their API. Units
+  are now listed without them, and every supported quantity is probed for
+  data instead of relying on the list Techem used to advertise.
+- Adding the integration and re-authenticating failed, because Techem also
+  removed the `me` profile query. Credentials are now verified by logging in.
+
 ## [0.1.0] - 2026-09-16
 
 First release. A from-scratch Home Assistant integration for the Techem tenant

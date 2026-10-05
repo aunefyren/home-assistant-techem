@@ -79,8 +79,6 @@ def main() -> int:
                 unit["unit"]["id"] = UNIT_ID
         out["tenantUnits"] = units
 
-    out["me"] = grab("me")
-
     for quantity in (
         "cold-water-volume",
         "hot-water-volume",

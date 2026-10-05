@@ -26,10 +26,10 @@ def build(session: FakeSession, host: str = MOCK_HOST) -> TechemClient:
 async def test_login_stores_token(session: FakeSession, api: TechemApiMock) -> None:
     """A successful login yields a usable session."""
     client = build(session)
-    profile = await client.async_verify_credentials()
+    await client.async_verify_credentials()
 
-    assert profile["email"] == MOCK_EMAIL
     assert api.login_count == 1
+    assert client._token
 
 
 async def test_invalid_credentials_raise_auth_error(

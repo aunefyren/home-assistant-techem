@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from datetime import date
 from typing import Any
 
@@ -13,18 +14,19 @@ _LOGGER = logging.getLogger(__name__)
 
 
 async def async_validate_quantities(
-    client: TechemClient, object_id: str, advertised: list[str]
+    client: TechemClient, object_id: str, candidates: Iterable[str] | None = None
 ) -> list[str]:
-    """Narrow the advertised quantities down to the ones that return data.
+    """Narrow the candidate quantities down to the ones that return data.
 
-    `treeInfo.quantities` over-reports: `total-water-volume` is listed but
-    every KPI for it comes back null. Ask before creating entities.
+    Techem no longer advertises a unit's quantities (`treeInfo` was dropped
+    from the schema), and when it did it over-reported anyway. So every
+    quantity we know about is probed, and only those with data are kept.
     """
     today = date.today()
     year_start = date(today.year, 1, 1)
 
     usable: list[str] = []
-    for key in advertised:
+    for key in QUANTITIES if candidates is None else candidates:
         if key not in QUANTITIES:
             _LOGGER.debug("Ignoring unsupported Techem quantity %s", key)
             continue

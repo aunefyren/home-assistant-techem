@@ -54,9 +54,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: TechemConfigEntry) -> bo
             f"Unit {object_id} is no longer available on this account"
         )
 
-    advertised = (unit.get("treeInfo") or {}).get("quantities") or []
     try:
-        quantities = await async_validate_quantities(client, object_id, advertised)
+        quantities = await async_validate_quantities(client, object_id)
     except TechemError as err:
         raise ConfigEntryNotReady(f"Could not read Techem quantities: {err}") from err
 

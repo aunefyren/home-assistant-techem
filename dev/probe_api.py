@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """One-off probe of the Techem GraphQL API.
 
-Logs in, discovers your unit(s) and meters, then runs every query shape the
+Logs in, discovers your unit(s), then runs every query shape the
 integration is likely to need and dumps the responses.
 
 Credentials never leave your machine. Two files are written:
@@ -147,46 +147,13 @@ mutation Login($credentials: CredentialsInput!) {
 }
 """
 
-ME = "{ me { id name email language } }"
-
 # Asking for units + children + grandchildren + meters in one query times out.
 # Staged instead: a cheap listing first, then per-unit detail.
 UNITS = """
 {
   tenantUnits {
     id
-    treeInfo { quantities }
-    childrenCount { property section unit group operationalGroup measurementPoint }
-    unit { id unitUniqueId name size street location unitNumber }
-  }
-}
-"""
-
-UNIT_CHILDREN = """
-query UnitChildren($id: ID!) {
-  object(withId: $id) {
-    id
-    children {
-      id
-      treeInfo { quantities }
-      measurementPoint { id name quantity room }
-      group { id quantity operational }
-    }
-  }
-}
-"""
-
-UNIT_METERS = """
-query UnitMeters($id: ID!) {
-  object(withId: $id) {
-    id
-    children {
-      id
-      group {
-        id quantity operational
-        meter { id number wmbusId roomName external originChannel fromDate toDate }
-      }
-    }
+    unit { id unitUniqueId name street location unitNumber }
   }
 }
 """
@@ -211,7 +178,7 @@ query TenantTable($table: TenantTableInput!) {
 KPIS = """
 query Kpis($input: UnitQuantityKPIsInput!) {
   unitQuantityKpis(input: $input) {
-    total previousPeriod previousYear propertyComparison normalized
+    total previousPeriod previousYear propertyComparison
     rooms { label value }
     meters { value object { id measurementPoint { id name quantity room } } }
   }
@@ -226,9 +193,8 @@ query TenantGraph($graph: TenantGraphInput!) {
       type
       consumption {
         quantityDescriptor { quantity normalized expressedAs }
-        meta { average median min max sum count }
         values
-        relatedValues { type values meta { sum count } }
+        relatedValues { type values }
       }
     }
   }
@@ -264,6 +230,14 @@ query Alarms($forObjectId: ID!) {
   }
 }
 """
+
+# Techem no longer advertises a unit's quantities, so probe every one known.
+QUANTITIES = (
+    "cold-water-volume",
+    "hot-water-volume",
+    "heat-energy",
+    "total-water-volume",
+)
 
 
 def main() -> int:
@@ -311,7 +285,6 @@ def main() -> int:
         out.setdefault("queries", {})[label] = {"variables": variables, "response": res}
         return res
 
-    call("me", ME)
     units = call("tenantUnits", UNITS)
 
     try:
@@ -328,12 +301,7 @@ def main() -> int:
                 f"tenantUnits gave nothing; using TECHEM_OBJECT_ID={manual}",
                 file=sys.stderr,
             )
-            unit_objs = [
-                {
-                    "id": manual,
-                    "treeInfo": {"quantities": ["ENERGY", "HOT_WATER", "COLD_WATER"]},
-                }
-            ]
+            unit_objs = [{"id": manual}]
         else:
             print(
                 "could not read tenantUnits; see dump. Re-run with "
@@ -343,15 +311,7 @@ def main() -> int:
 
     for idx, u in enumerate(unit_objs):
         oid = str(u.get("id"))
-        quantities = (u.get("treeInfo") or {}).get("quantities") or []
-        print(f"unit {idx} id={oid} quantities={quantities}", file=sys.stderr)
-
-        call(f"u{idx}.children", UNIT_CHILDREN, {"id": oid})
-        call(f"u{idx}.meters", UNIT_METERS, {"id": oid})
-
-        if not quantities:
-            # Discovery failed; probe the three we care about anyway.
-            quantities = ["ENERGY", "HOT_WATER", "COLD_WATER"]
+        print(f"unit {idx} id={oid}", file=sys.stderr)
 
         # Table: year to date vs last year, and the last full week.
         call(
@@ -412,7 +372,7 @@ def main() -> int:
         )
         call(f"u{idx}.alarms", _ALARMS, {"forObjectId": oid})
 
-        for q in quantities:
+        for q in QUANTITIES:
             call(
                 f"u{idx}.prices.{q}",
                 _PRICES,

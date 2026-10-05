@@ -45,14 +45,11 @@ mutation Refresh($refreshToken: String!) {
 }
 """
 
-_ME = "{ me { id name email language } }"
-
 _UNITS = """
 {
   tenantUnits {
     id
-    treeInfo { quantities }
-    unit { id name size street location unitNumber }
+    unit { id name street location unitNumber }
   }
 }
 """
@@ -252,11 +249,13 @@ class TechemClient:
             await self._async_renew()
             return await self._post(query, variables, self._token)
 
-    async def async_verify_credentials(self) -> dict[str, Any]:
-        """Log in and return the account profile. Used by the config flow."""
+    async def async_verify_credentials(self) -> None:
+        """Check the credentials by logging in. Used by the config flow.
+
+        A successful login is the proof; Techem no longer offers a `me`
+        profile query to confirm it with.
+        """
         await self.async_login()
-        data = await self._async_query(_ME)
-        return data.get("me") or {}
 
     async def async_get_units(self) -> list[dict[str, Any]]:
         """List the units this login has access to."""

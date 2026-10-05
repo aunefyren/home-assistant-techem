@@ -54,9 +54,9 @@ class TechemQuantity:
     unit_class: str
 
 
-# Keyed by the strings Techem returns in `treeInfo.quantities`. Anything not
-# listed here is ignored -- `total-water-volume` is advertised but returns no
-# data, and unknown quantities are safer skipped than guessed at.
+# Keyed by Techem's quantity strings. Each is probed per unit at setup and only
+# kept if it returns data. `total-water-volume` exists but returns nothing, and
+# unknown quantities are safer skipped than guessed at.
 QUANTITIES: dict[str, TechemQuantity] = {
     "cold-water-volume": TechemQuantity(
         key="cold-water-volume",

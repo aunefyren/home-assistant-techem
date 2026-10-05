@@ -11,6 +11,7 @@ import base64
 import json
 import logging
 import pathlib
+import re
 import time
 from datetime import date, datetime
 from typing import Any
@@ -156,9 +157,13 @@ class TechemApiMock:
             return FakeResponse(
                 200, {"data": None, "errors": [{"message": self.query_error}]}
             )
-        if "me {" in query:
-            return FakeResponse(200, {"data": self.responses["me"]})
         if "tenantUnits" in query:
+            # Removed from Techem's schema; asking for them fails the query.
+            if "treeInfo" in query or re.search(r"\bsize\b", query):
+                return FakeResponse(
+                    200,
+                    {"data": None, "errors": [{"message": "Cannot query field"}]},
+                )
             return FakeResponse(200, {"data": {"tenantUnits": self.units}})
         if "unitQuantityKpis" in query:
             return self._kpis(variables)

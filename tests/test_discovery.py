@@ -38,6 +38,16 @@ async def test_phantom_quantity_is_dropped(
     assert TOTAL_WATER not in usable
 
 
+async def test_all_known_quantities_probed_by_default(session: FakeSession) -> None:
+    """Techem no longer advertises quantities, so every known one is tried."""
+    client = TechemClient(session, MOCK_HOST, MOCK_EMAIL, MOCK_PASSWORD)
+    await client.async_login()
+
+    usable = await async_validate_quantities(client, MOCK_OBJECT_ID)
+
+    assert set(usable) == {COLD, HOT, HEAT}
+
+
 async def test_unknown_quantity_is_ignored(session: FakeSession) -> None:
     """Quantities we have no metadata for are skipped, not guessed at."""
     client = TechemClient(session, MOCK_HOST, MOCK_EMAIL, MOCK_PASSWORD)
