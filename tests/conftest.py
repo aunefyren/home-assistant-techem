@@ -51,6 +51,19 @@ def auto_setup(recorder_mock, enable_custom_integrations):
     return
 
 
+@pytest.fixture(autouse=True)
+def frozen_today(freezer):
+    """Pin the clock to just after the captured data.
+
+    The integration windows its requests on `date.today()`, and the fake
+    endpoint filters the captured series by those windows, so the expected
+    values only hold for a fixed "today". The last captured reading is
+    2026-09-14 and readings arrive about two days late.
+    """
+    freezer.move_to("2026-09-16 12:00:00")
+    return freezer
+
+
 def load_responses() -> dict[str, Any]:
     """Load the API responses captured from a real account."""
     return json.loads((FIXTURES / "api_responses.json").read_text())
