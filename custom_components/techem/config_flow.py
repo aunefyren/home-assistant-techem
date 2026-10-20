@@ -23,6 +23,9 @@ from homeassistant.const import (
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
@@ -37,6 +40,7 @@ from .const import (
     KNOWN_HOSTS,
     MAX_SCAN_INTERVAL_HOURS,
     MIN_SCAN_INTERVAL_HOURS,
+    QUANTITIES,
 )
 from .discovery import unit_label
 
@@ -219,23 +223,39 @@ class TechemOptionsFlow(OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Let the user adjust how often Techem is polled."""
+        """Let the user adjust polling and set prices for cost tracking."""
         if user_input is not None:
+            # A cleared price field is simply absent, which turns costs off.
             return self.async_create_entry(data=user_input)
 
-        current = self.config_entry.options.get(
-            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_HOURS
-        )
-        return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(CONF_SCAN_INTERVAL, default=current): vol.All(
-                        vol.Coerce(int),
-                        vol.Range(
-                            min=MIN_SCAN_INTERVAL_HOURS, max=MAX_SCAN_INTERVAL_HOURS
-                        ),
-                    )
-                }
-            ),
-        )
+        options = self.config_entry.options
+        current = options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL_HOURS)
+        schema: dict[Any, Any] = {
+            vol.Required(CONF_SCAN_INTERVAL, default=current): vol.All(
+                vol.Coerce(int),
+                vol.Range(min=MIN_SCAN_INTERVAL_HOURS, max=MAX_SCAN_INTERVAL_HOURS),
+            )
+        }
+
+        # Only offer prices for what this unit actually meters, when known.
+        coordinator = getattr(self.config_entry, "runtime_data", None)
+        keys = getattr(coordinator, "quantities", None) or list(QUANTITIES)
+        currency = self.hass.config.currency
+        for key in keys:
+            quantity = QUANTITIES[key]
+            price = options.get(quantity.price_option)
+            schema[
+                vol.Optional(
+                    quantity.price_option,
+                    description={"suggested_value": price},
+                )
+            ] = NumberSelector(
+                NumberSelectorConfig(
+                    min=0,
+                    step="any",
+                    mode=NumberSelectorMode.BOX,
+                    unit_of_measurement=f"{currency}/{quantity.unit}",
+                )
+            )
+
+        return self.async_show_form(step_id="init", data_schema=vol.Schema(schema))

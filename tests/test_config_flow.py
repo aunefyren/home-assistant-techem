@@ -12,10 +12,18 @@ from homeassistant.data_entry_flow import FlowResultType, InvalidData
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.techem.config_flow import normalise_host
-from custom_components.techem.const import CONF_OBJECT_ID, DOMAIN
+from custom_components.techem.const import CONF_OBJECT_ID, DOMAIN, QUANTITIES
 
 from .conftest import FakeSession, TechemApiMock
-from .const import MOCK_EMAIL, MOCK_HOST, MOCK_OBJECT_ID, MOCK_PASSWORD, MOCK_UNIQUE_ID
+from .const import (
+    HEAT,
+    HOT,
+    MOCK_EMAIL,
+    MOCK_HOST,
+    MOCK_OBJECT_ID,
+    MOCK_PASSWORD,
+    MOCK_UNIQUE_ID,
+)
 
 USER_INPUT = {
     CONF_EMAIL: MOCK_EMAIL,
@@ -294,4 +302,42 @@ async def test_options_flow_rejects_out_of_range(
     with pytest.raises(InvalidData):
         await hass.config_entries.options.async_configure(
             result["flow_id"], {CONF_SCAN_INTERVAL: 999}
+        )
+
+
+async def test_options_flow_sets_and_clears_prices(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
+    """Prices are optional, and leaving one empty turns its cost off."""
+    mock_config_entry.add_to_hass(hass)
+    heating = QUANTITIES[HEAT].price_option
+    hot_water = QUANTITIES[HOT].price_option
+
+    result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {CONF_SCAN_INTERVAL: 6, heating: 1.25, hot_water: 80}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert mock_config_entry.options[heating] == 1.25
+    assert mock_config_entry.options[hot_water] == 80
+
+    result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {CONF_SCAN_INTERVAL: 6, heating: 1.5}
+    )
+    assert mock_config_entry.options[heating] == 1.5
+    assert hot_water not in mock_config_entry.options
+
+
+async def test_options_flow_rejects_negative_price(
+    hass: HomeAssistant, mock_config_entry: MockConfigEntry
+) -> None:
+    """A negative price is refused by the schema."""
+    mock_config_entry.add_to_hass(hass)
+
+    result = await hass.config_entries.options.async_init(mock_config_entry.entry_id)
+    with pytest.raises(InvalidData):
+        await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            {CONF_SCAN_INTERVAL: 6, QUANTITIES[HEAT].price_option: -1},
         )

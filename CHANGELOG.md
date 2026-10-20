@@ -3,6 +3,20 @@
 All notable changes to this project are documented here. This project follows
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- Optional cost tracking. Set a price per quantity under *Configure* and the
+  integration writes a matching `techem:<unit>_<quantity>_cost` statistic in
+  your Home Assistant currency. Pick it in the Energy dashboard as the
+  statistic tracking total costs. Home Assistant cannot derive costs itself
+  for external statistics.
+
+### Changed
+- README rewritten, with a step-by-step Energy dashboard guide. District
+  heating is now recommended under Gas consumption rather than Electricity
+  grid, which counted it as purchased electricity.
+
 ## [0.1.2] - 2026-10-05
 
 ### Fixed
