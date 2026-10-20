@@ -16,6 +16,10 @@ All notable changes to this project are documented here. This project follows
 - README rewritten, with a step-by-step Energy dashboard guide. District
   heating is now recommended under Gas consumption rather than Electricity
   grid, which counted it as purchased electricity.
+- Requires Home Assistant 2026.3 or newer, the first release that shows
+  the brand assets shipped with the integration.
+- The HACS validation no longer skips the brands check, since the icon and
+  logo now ship in `custom_components/techem/brand/`.
 
 ## [0.1.2] - 2026-10-05
 
