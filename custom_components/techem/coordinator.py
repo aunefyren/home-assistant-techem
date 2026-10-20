@@ -173,14 +173,17 @@ class TechemCoordinator(DataUpdateCoordinator[dict[str, QuantityData]]):
     ) -> None:
         """Import statistics for every quantity, one at a time."""
         async with self._statistics_lock:
+            options = self.config_entry.options if self.config_entry else {}
             for key, series in series_by_quantity.items():
+                quantity = QUANTITIES[key]
                 try:
                     await async_import_statistics(
                         self.hass,
                         self.client,
                         self.object_id,
-                        QUANTITIES[key],
+                        quantity,
                         series,
+                        options.get(quantity.price_option),
                     )
                 except TechemError as err:
                     _LOGGER.warning("Statistics import failed for %s: %s", key, err)

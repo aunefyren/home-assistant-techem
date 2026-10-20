@@ -43,9 +43,17 @@
     "step": {
       "init": {
         "title": "Innstillinger for Techem",
-        "description": "Techem-målerne rapporterer én gang i døgnet, og avlesningene kommer omtrent to dager på etterskudd. Hyppigere henting gir derfor ingenting.",
+        "description": "Techem-målerne rapporterer én gang i døgnet, og avlesningene kommer omtrent to dager på etterskudd. Hyppigere henting gir derfor ingenting.\n\nOppgi en pris for at integrasjonen skal skrive en kostnadsstatistikk til energipanelet. La prisen stå tom for å ikke spore kostnad.",
         "data": {
-          "scan_interval": "Timer mellom oppdateringer"
+          "scan_interval": "Timer mellom oppdateringer",
+          "cold_water_price": "Pris for kaldtvann",
+          "hot_water_price": "Pris for varmtvann",
+          "heating_price": "Pris for oppvarming"
+        },
+        "data_description": {
+          "cold_water_price": "Per kubikkmeter, i valutaen Home Assistant er satt opp med.",
+          "hot_water_price": "Per kubikkmeter, i valutaen Home Assistant er satt opp med.",
+          "heating_price": "Per kWh, i valutaen Home Assistant er satt opp med."
         }
       }
     }

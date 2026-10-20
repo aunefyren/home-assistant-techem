@@ -43,9 +43,17 @@
     "step": {
       "init": {
         "title": "Techem options",
-        "description": "Techem meters report once a day and readings arrive about two days late, so polling more often changes nothing.",
+        "description": "Techem meters report once a day and readings arrive about two days late, so polling more often changes nothing.\n\nSet a price to have the integration write a cost statistic for the Energy dashboard. Leave a price empty to skip cost tracking for it.",
         "data": {
-          "scan_interval": "Hours between updates"
+          "scan_interval": "Hours between updates",
+          "cold_water_price": "Cold water price",
+          "hot_water_price": "Hot water price",
+          "heating_price": "Heating price"
+        },
+        "data_description": {
+          "cold_water_price": "Per cubic metre, in your Home Assistant currency.",
+          "hot_water_price": "Per cubic metre, in your Home Assistant currency.",
+          "heating_price": "Per kWh, in your Home Assistant currency."
         }
       }
     }

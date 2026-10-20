@@ -4,10 +4,14 @@ from __future__ import annotations
 
 import re
 from datetime import date
+from functools import partial
 
 import pytest
 from homeassistant.components.recorder import get_instance
-from homeassistant.components.recorder.statistics import statistics_during_period
+from homeassistant.components.recorder.statistics import (
+    get_metadata,
+    statistics_during_period,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.components.recorder.common import (
@@ -18,6 +22,7 @@ from custom_components.techem.api import TechemClient
 from custom_components.techem.const import QUANTITIES
 from custom_components.techem.statistics_import import (
     async_import_statistics,
+    cost_statistic_id_for,
     slugify_unit,
     statistic_id_for,
 )
@@ -224,3 +229,112 @@ async def test_gap_before_window_still_splices(
 
     assert len(after) == len(before)
     assert after[-1][2] == pytest.approx(before[-1][2])
+
+
+# -- cost ------------------------------------------------------------------
+
+PRICE = 1.5
+
+
+async def test_no_cost_statistic_without_price(
+    hass: HomeAssistant, client: TechemClient, api: TechemApiMock
+) -> None:
+    """Costs are only written when the user has set a price."""
+    await client.async_login()
+    quantity = QUANTITIES[HEAT]
+
+    await async_import_statistics(
+        hass, client, MOCK_OBJECT_ID, quantity, api.history[HEAT]
+    )
+
+    assert await read_sums(hass, cost_statistic_id_for(MOCK_OBJECT_ID, quantity)) == []
+
+
+async def test_cost_is_consumption_times_price(
+    hass: HomeAssistant, client: TechemClient, api: TechemApiMock
+) -> None:
+    """Each cost bucket lines up with its consumption bucket at the price."""
+    await client.async_login()
+    quantity = QUANTITIES[HEAT]
+    history = api.history[HEAT]
+
+    await async_import_statistics(
+        hass, client, MOCK_OBJECT_ID, quantity, history, PRICE
+    )
+    consumption = await read_sums(hass, statistic_id_for(MOCK_OBJECT_ID, quantity))
+    cost = await read_sums(hass, cost_statistic_id_for(MOCK_OBJECT_ID, quantity))
+
+    assert [day for day, _, _ in cost] == [day for day, _, _ in consumption]
+    for (_, used, used_sum), (_, spent, spent_sum) in zip(
+        consumption, cost, strict=True
+    ):
+        assert spent == pytest.approx(used * PRICE)
+        assert spent_sum == pytest.approx(used_sum * PRICE)
+
+
+async def test_price_set_later_backfills_cost(
+    hass: HomeAssistant, client: TechemClient, api: TechemApiMock
+) -> None:
+    """Setting a price after the first import costs the whole history.
+
+    Otherwise the cost statistic would start mid-stream with nothing to splice
+    onto and the dashboard would show costs only from the day it was set.
+    """
+    await client.async_login()
+    quantity = QUANTITIES[HEAT]
+    history = api.history[HEAT]
+
+    await async_import_statistics(hass, client, MOCK_OBJECT_ID, quantity, history)
+    await async_import_statistics(
+        hass, client, MOCK_OBJECT_ID, quantity, history[-5:], PRICE
+    )
+
+    consumption = await read_sums(hass, statistic_id_for(MOCK_OBJECT_ID, quantity))
+    cost = await read_sums(hass, cost_statistic_id_for(MOCK_OBJECT_ID, quantity))
+    assert len(cost) == len(consumption) == len(history)
+    assert cost[-1][2] == pytest.approx(consumption[-1][2] * PRICE)
+
+
+async def test_revised_reading_corrects_cost(
+    hass: HomeAssistant, client: TechemClient, api: TechemApiMock
+) -> None:
+    """A revised reading is re-costed, not added on top."""
+    await client.async_login()
+    quantity = QUANTITIES[HEAT]
+    cost_id = cost_statistic_id_for(MOCK_OBJECT_ID, quantity)
+
+    await async_import_statistics(
+        hass, client, MOCK_OBJECT_ID, quantity, api.history[HEAT], PRICE
+    )
+    before = await read_sums(hass, cost_id)
+
+    day, value = api.history[HEAT][-1]
+    api.history[HEAT][-1] = (day, value + 2.0)
+    await async_import_statistics(
+        hass, client, MOCK_OBJECT_ID, quantity, api.history[HEAT][-5:], PRICE
+    )
+    after = await read_sums(hass, cost_id)
+
+    assert len(after) == len(before)
+    assert after[-1][2] == pytest.approx(before[-1][2] + 2.0 * PRICE)
+
+
+async def test_cost_statistic_uses_configured_currency(
+    hass: HomeAssistant, client: TechemClient, api: TechemApiMock
+) -> None:
+    """The cost is reported in Home Assistant's currency."""
+    await client.async_login()
+    hass.config.currency = "NOK"
+    quantity = QUANTITIES[COLD]
+    cost_id = cost_statistic_id_for(MOCK_OBJECT_ID, quantity)
+
+    await async_import_statistics(
+        hass, client, MOCK_OBJECT_ID, quantity, api.history[COLD], PRICE
+    )
+    await async_wait_recording_done(hass)
+
+    metadata = await get_instance(hass).async_add_executor_job(
+        partial(get_metadata, hass, statistic_ids={cost_id})
+    )
+    assert metadata[cost_id][1]["unit_of_measurement"] == "NOK"
+    assert VALID_STATISTIC_ID.match(cost_id)

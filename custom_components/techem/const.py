@@ -53,6 +53,11 @@ class TechemQuantity:
     # homeassistant.util.unit_conversion.
     unit_class: str
 
+    @property
+    def price_option(self) -> str:
+        """Options key holding the user's price per unit, if they set one."""
+        return f"{self.translation_key}_price"
+
 
 # Keyed by Techem's quantity strings. Each is probed per unit at setup and only
 # kept if it returns data. `total-water-volume` exists but returns nothing, and

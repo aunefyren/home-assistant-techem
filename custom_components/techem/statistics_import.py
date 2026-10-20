@@ -6,6 +6,10 @@ would stamp them with the time Home Assistant happened to poll, so the energy
 dashboard would attribute Monday's water to Wednesday afternoon. External
 statistics let us write each reading against the day it belongs to, and
 rewriting a bucket overwrites it rather than double-counting.
+
+Home Assistant only derives costs itself for entity sources, never for
+external statistics, so when the user sets a price we also write a matching
+cost statistic for the energy dashboard's "entity tracking total costs".
 """
 
 from __future__ import annotations
@@ -22,7 +26,6 @@ from homeassistant.components.recorder.models import (
 )
 from homeassistant.components.recorder.statistics import (
     async_add_external_statistics,
-    get_last_statistics,
     statistics_during_period,
 )
 from homeassistant.core import HomeAssistant
@@ -55,6 +58,11 @@ def statistic_id_for(object_id: str, quantity: TechemQuantity) -> str:
     return f"{DOMAIN}:{slugify_unit(object_id)}_{quantity_slug}"
 
 
+def cost_statistic_id_for(object_id: str, quantity: TechemQuantity) -> str:
+    """Build the external statistic id for one unit and quantity's cost."""
+    return f"{statistic_id_for(object_id, quantity)}_cost"
+
+
 def _day_start(day: date) -> datetime:
     """Local midnight for a reading day, which is where its bucket goes."""
     return dt_util.start_of_local_day(day)
@@ -66,36 +74,43 @@ async def async_import_statistics(
     object_id: str,
     quantity: TechemQuantity,
     recent_series: list[tuple[date, float]],
+    price: float | None = None,
 ) -> None:
     """Import or refresh statistics for one quantity.
 
     On first run this backfills everything Techem still has. Afterwards it
     rewrites only the recent window, so revised readings are corrected without
     re-fetching years of history on every poll.
+
+    With a `price`, a cost statistic is kept alongside at that flat price. It
+    is spliced and rebuilt together with the consumption, so a changed price
+    reaches only the days that get rewritten.
     """
     statistic_id = statistic_id_for(object_id, quantity)
-
-    last_stats = await get_instance(hass).async_add_executor_job(
-        get_last_statistics, hass, 1, statistic_id, True, {"sum"}
-    )
+    cost_id = cost_statistic_id_for(object_id, quantity) if price is not None else None
 
     series = recent_series
     baseline: float | None = None
+    cost_baseline: float | None = None
 
     # `series` may be empty when Techem returns nothing for the recent window;
     # fall through to a rebuild rather than indexing into it.
-    if series and last_stats and last_stats.get(statistic_id):
+    if series:
         baseline = await _async_sum_before(hass, statistic_id, series[0][0])
+        if cost_id is not None and baseline is not None:
+            cost_baseline = await _async_sum_before(hass, cost_id, series[0][0])
 
-    if baseline is None:
-        # Either nothing has been imported yet, or the recent window does not
-        # join up with what is already stored. Rebuild from the beginning.
+    if baseline is None or (cost_id is not None and cost_baseline is None):
+        # Either nothing has been imported yet, a price was only just set, or
+        # the recent window does not join up with what is already stored.
+        # Rebuild from the beginning.
         try:
             series = await _async_fetch_full_history(client, object_id, quantity)
         except TechemError as err:
             _LOGGER.warning("Could not backfill history for %s: %s", statistic_id, err)
             return
         baseline = 0.0
+        cost_baseline = 0.0
 
     if not series:
         return
@@ -124,6 +139,28 @@ async def async_import_statistics(
         series[0][0],
         series[-1][0],
     )
+
+    if cost_id is None or price is None or cost_baseline is None:
+        return
+
+    cost_total = cost_baseline
+    costs: list[StatisticData] = []
+    for day, value in series:
+        cost = value * price
+        cost_total += cost
+        costs.append(StatisticData(start=_day_start(day), state=cost, sum=cost_total))
+
+    cost_metadata = StatisticMetaData(
+        mean_type=StatisticMeanType.NONE,
+        has_sum=True,
+        name=None,
+        source=DOMAIN,
+        statistic_id=cost_id,
+        unit_class=None,
+        unit_of_measurement=hass.config.currency,
+    )
+
+    async_add_external_statistics(hass, cost_metadata, costs)
 
 
 async def _async_sum_before(

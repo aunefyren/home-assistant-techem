@@ -14,18 +14,10 @@
 > [!NOTE]
 > Parts of this integration were co-written with Claude (Anthropic AI).
 
-This integration reads cold water, hot water and district heating consumption
-from the Techem tenant portal at [beboer.techemadmin.no](https://beboer.techemadmin.no/)
-and exposes it to Home Assistant, including the Energy dashboard.
-
-<br>
-<br>
-
-[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=aunefyren&repository=home-assistant-techem)  
-Must be added as a custom repository.
-
-<br>
-<br>
+Brings cold water, hot water and district heating consumption from the Techem
+tenant portal ([beboer.techemadmin.no](https://beboer.techemadmin.no/)) into
+Home Assistant: as sensors, and as properly dated long-term statistics you can
+add to the Energy dashboard, with optional cost tracking.
 
 > [!IMPORTANT]
 > Techem has no public API. This integration uses the same private GraphQL
@@ -33,133 +25,220 @@ Must be added as a custom repository.
 > close it without notice.
 
 <br>
+
+## Contents
+* [Features](#features)
+* [Installation](#installation)
+* [Energy dashboard](#energy-dashboard)
+* [Cost tracking](#cost-tracking)
+* [Entities](#entities)
+* [How often it updates](#how-often-it-updates)
+* [Supported Techem servers](#supported-techem-servers)
+* [Troubleshooting](#troubleshooting)
+* [Development](#development)
+
 <br>
 
-## Main features
-* UI-based setup, no `configuration.yaml` editing required
-* Your unit and its meters are discovered automatically, no digging through
-  browser developer tools for an object ID
+## Features
+* UI setup: sign in with your portal credentials. No `configuration.yaml`, and
+  no digging through browser developer tools for an object ID.
+* Your unit and the quantities it actually meters are discovered
+  automatically.
 * Daily readings are imported as **long-term statistics dated to the day they
-  belong to**, not the day Home Assistant happened to fetch them
-* Your full consumption history is backfilled the first time it runs
+  belong to**, not the day Home Assistant happened to fetch them.
+* Your full consumption history is backfilled on first setup.
+* Revised readings are corrected in place, never double-counted.
+* Optional cost statistics for the Energy dashboard, from a price you set.
 * Comparison sensors: versus last year, versus the previous period, and versus
-  the average comparable unit in your building
-* English and Norwegian (bokmål) translations
+  the average comparable unit in your building.
+* English and Norwegian (bokmål) translations.
 
-<br>
 <br>
 
 ## Installation
-1. Add this repository to HACS as a custom repository of type *Integration*.
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=aunefyren&repository=home-assistant-techem)
+
+1. In HACS, add this repository as a custom repository of type
+   *Integration* (or use the button above).
 2. Install **Techem** and restart Home Assistant.
-3. Go to *Settings -> Devices & services -> Add integration* and pick **Techem**.
+3. Go to *Settings → Devices & services → Add integration* and pick
+   **Techem**.
 4. Sign in with the email and password you use on beboer.techemadmin.no.
 
 If your account has access to more than one unit you will be asked which one to
-use. Add the integration again to set up a second unit.
+use. Add the integration again to set up another unit.
 
 <br>
-<br>
 
-## Supported Techem servers
-Techem runs the same tenant platform under several country domains. During
-setup you pick which one your portal uses.
+## Energy dashboard
+The Energy dashboard reads **statistics**, not sensors. For every metered
+quantity the integration writes an external statistic:
 
-| Server | Status |
+| Quantity | Statistic ID |
 | --- | --- |
-| `techemadmin.no` (Norway, beboer.techemadmin.no) | Verified against a real account |
-| `techemadmin.dk` (Denmark) | Serves an identical API, but untested with a real account |
-| Other hostname | You can type one in; it must expose `/analytics/graphql` |
+| Cold water | `techem:<unit>_cold_water_volume` (m³) |
+| Hot water | `techem:<unit>_hot_water_volume` (m³) |
+| District heating | `techem:<unit>_heat_energy` (kWh) |
 
-> [!WARNING]
-> **`mieter.techem.de` is not supported.** Techem's German tenant portal is a
-> completely separate application with no `/analytics/graphql` endpoint. It
-> shares the Techem brand and nothing else, and no amount of configuration
-> will make this integration talk to it.
+The exact IDs are in the `statistic_id` attribute of every Techem sensor. The
+sensors themselves are deliberately not offered to the Energy dashboard: they
+would be stamped with the time Home Assistant polled, two days after the fact.
 
-If you are on the Danish server, or another one, and something does not work,
-please open an issue with the output of `dev/probe_api.py`:
+### Setting it up
+1. Wait for the first update after setup. That is when the history is
+   backfilled and the statistics are created. Until then the Energy pickers
+   have nothing to show.
+2. Go to *Settings → Dashboards → Energy*.
+3. Under **Water consumption**, choose *Add water source* twice: once for
+   cold water, once for hot water. They come from separate meters, so
+   together they are your unit's total water use.
+4. Under **Gas consumption**, add the heating statistic. See below for why.
+5. Leave **flow rate** fields empty. Techem reports once a day, so there is no
+   real-time rate to show.
+6. For costs, see [Cost tracking](#cost-tracking).
 
-```bash
-TECHEM_EMAIL=you@example.com TECHEM_HOST=techemadmin.dk python3 dev/probe_api.py
-```
+### Where to put district heating
+Home Assistant has no dedicated district-heating source, so heating needs a
+home. **Gas consumption** is the recommended workaround: it accepts kWh,
+supports costs, and keeps heating out of your electricity figures. The only
+downside is that the dashboard labels it "Gas".
 
-It writes a redacted, shareable dump alongside the private one.
+Avoid the alternatives:
+* **Electricity grid consumption** counts heat as electricity you bought. This
+  inflates your electricity totals and costs and skews any solar or
+  self-consumption figures.
+* **Individual devices** are meant to be parts of your electricity use. Heating
+  is not part of it, so "untracked consumption" ends up negative or
+  meaningless.
+
+If your Home Assistant version offers a dedicated heat source, use that
+instead.
+
+### What to expect
+* **The latest ~2 days are empty.** Techem readings arrive about two days
+  late. When they do, they fill in under the correct day.
+* **The day view shows one bar at midnight.** Each daily reading is stored in
+  the hour starting at local midnight on the day it belongs to. The week,
+  month and year views are unaffected. Hourly detail does not exist; the
+  meters only report daily.
+* **Revisions overwrite.** If Techem corrects a reading, the stored value is
+  replaced rather than added to.
 
 <br>
+
+## Cost tracking
+Home Assistant only calculates costs itself for sources that are entities. For
+external statistics like these, the Energy dashboard greys out the fixed
+price and price entity options. Instead, the integration can write a cost
+statistic for you.
+
+1. Go to *Settings → Devices & services → Techem → Configure*.
+2. Enter a price for each quantity you want costed. Water is priced per m³ and
+   heating per kWh, both in the currency set in Home Assistant (*Settings →
+   System → General*). Leave a field empty to skip that quantity.
+3. After the next update, a statistic named like the consumption one with
+   `_cost` appended appears, e.g. `techem:<unit>_heat_energy_cost`.
+4. In the Energy dashboard, edit the source, choose the option to use a
+   statistic tracking the total costs, and pick the matching `_cost`
+   statistic.
+
+Limitations:
+* **One flat price per quantity.** Standing charges, administration fees and
+  tiered tariffs are not included. Treat the figure as variable cost only.
+* **Price changes are not retroactive in full.** The new price applies to the
+  roughly 35 most recent days, which are rewritten on every update, and to
+  everything after. Older days keep the price they were costed at. Setting a
+  price for the first time costs your entire history at that price.
+* **Removing a price stops updates.** The existing cost statistic is kept.
+  Remove it from the Energy dashboard, and delete it under *Developer tools →
+  Statistics* if you no longer want it.
+
 <br>
 
 ## Entities
-For every quantity your unit actually meters, you get:
+For every quantity your unit meters, you get:
 
 | Entity | Description |
 | --- | --- |
-| `... this year` | Consumption so far this calendar year |
-| `... same period last year` | The same span last year |
-| `... building average` | The average comparable unit in your building |
-| `... daily average` | Average per day over the last seven days with data |
-| `... last reading` | The most recent daily reading |
-| `... reading date` | The date of the most recent reading (diagnostic) |
+| `… this year` | Consumption so far this calendar year |
+| `… same period last year` | The same span last year |
+| `… building average` | The average comparable unit in your building |
+| `… daily average` | Average per day over the last seven days with data |
+| `… last reading` | The most recent daily reading |
+| `… reading date` | The date of the most recent reading (diagnostic) |
 
-Every figure above is reported by Techem directly. The following are plain
-arithmetic on those figures and ship **disabled by default** -- enable them in
+Every figure above comes from Techem directly. The following are plain
+arithmetic on those figures and ship **disabled by default**. Enable them in
 the entity settings if you would rather not write a template:
 
 | Entity | Equivalent to |
 | --- | --- |
-| `... vs last year` | `this year` against `same period last year` |
-| `... vs previous period` | `daily average` against `previous daily average` |
-| `... vs building average` | `this year` against `building average` |
-| `... previous daily average` | The seven days before the current average |
+| `… vs last year` | `this year` against `same period last year` |
+| `… vs previous period` | `daily average` against `previous daily average` |
+| `… vs building average` | `this year` against `building average` |
+| `… previous daily average` | The seven days before the current average |
 
-Each also carries a `rooms` attribute with the per-room split, and a
-`statistic_id` attribute pointing at its long-term statistics.
+Each sensor also carries a `rooms` attribute with the per-room split, and a
+`statistic_id` attribute pointing at its long-term statistic.
 
-<br>
-<br>
-
-## Energy dashboard
-The integration writes external statistics named
-`techem:<unit>_cold_water_volume`, `techem:<unit>_hot_water_volume` and
-`techem:<unit>_heat_energy`.
-
-Add them under *Settings -> Dashboards -> Energy*:
-* water statistics as **Water consumption**
-* the heating statistic as an individual device under **Electricity grid** or
-  as a gas/heat source, depending on how you prefer to account for it
-
-You can find the exact IDs in the `statistic_id` attribute of any Techem sensor.
-
-<br>
 <br>
 
 ## How often it updates
 Techem meters report **once per day**, and a reading typically appears about
 **two days later**. The integration polls every six hours by default, which is
-already more often than the data changes. You can adjust it under the
-integration's *Configure* menu, but raising it will not get you fresher data.
-
-This delay is also why consumption is imported as statistics rather than
-tracked with a live sensor: statistics can be dated to the day the water was
-actually used, and a revised reading overwrites the old one instead of being
-counted twice.
+already more often than the data changes. You can change the interval under
+the integration's *Configure* menu, but polling more often will not get you
+fresher data.
 
 <br>
+
+## Supported Techem servers
+Techem runs the same tenant platform under several country domains. You pick
+yours during setup.
+
+| Server | Status |
+| --- | --- |
+| `techemadmin.no` (Norway, beboer.techemadmin.no) | Verified against a real account |
+| `techemadmin.dk` (Denmark) | Serves an identical API; untested with a real account |
+| Other hostname | Can be typed in; must expose `/analytics/graphql` |
+
+> [!WARNING]
+> **`mieter.techem.de` is not supported.** Techem's German tenant portal is a
+> separate application with no `/analytics/graphql` endpoint. It shares the
+> Techem brand and nothing else.
+
+If you are on another server and something does not work, please open an issue
+with the output of `dev/probe_api.py`:
+
+```bash
+TECHEM_EMAIL=you@example.com TECHEM_HOST=techemadmin.dk python3 dev/probe_api.py
+```
+
+It writes a redacted, shareable dump alongside the private one. Share only the
+redacted file.
+
 <br>
 
 ## Troubleshooting
-**No entities appear.** Your unit may not meter the quantities this integration
+**No entities appear.** Your unit may not meter any quantity this integration
 supports. Download diagnostics from the integration page to see what Techem
 reported.
+
+**The statistics are missing from the Energy dashboard.** The first import
+runs in the background after setup and can take a while on accounts with long
+history. Check *Developer tools → Statistics* for `techem:` entries.
+
+**The cost statistic is missing.** It is only written once a price is set, and
+only after the next update.
 
 **Authentication keeps failing.** Confirm the credentials work at
 beboer.techemadmin.no. Home Assistant will prompt you to re-enter the password
 when Techem stops accepting the stored one.
 
-**The numbers lag behind the portal.** Expected; see above. The
-`... reading date` sensor tells you how current the data actually is.
+**The numbers lag behind the portal.** Expected; see
+[How often it updates](#how-often-it-updates). The `… reading date` sensor
+shows how current the data is.
 
-<br>
 <br>
 
 ## Development
@@ -170,8 +249,8 @@ ruff check custom_components tests dev
 ruff format --check custom_components tests dev
 ```
 
-Home Assistant needs Python 3.13. If your system Python is older, [uv](https://github.com/astral-sh/uv)
-can provide one without root:
+Home Assistant needs Python 3.13. If your system Python is older,
+[uv](https://github.com/astral-sh/uv) can provide one without root:
 
 ```bash
 uv python install 3.13
@@ -192,7 +271,6 @@ python3 dev/make_fixtures.py
 `dev/docker-compose.yml` starts a throwaway Home Assistant with the integration
 mounted, for testing against a real account.
 
-<br>
 <br>
 
 ## Credits

@@ -10,6 +10,7 @@ tenant portal (beboer.techemadmin.no).
 * Daily readings imported as long-term statistics with correct dates, so the
   Energy dashboard shows consumption on the day it happened
 * Full consumption history backfilled on first setup
+* Optional cost statistics for the Energy dashboard from a price you set
 * Comparisons against last year, the previous period and the building average
 * English and Norwegian (bokmål) translations
 
@@ -20,4 +21,4 @@ tenant portal (beboer.techemadmin.no).
 
 Techem meters report once a day and readings arrive about two days late, so the
 integration polls every six hours by default. See the README for Energy
-dashboard setup and the full entity list.
+dashboard and cost setup and the full entity list.
