@@ -32,6 +32,10 @@ class TechemSensorDescription(SensorEntityDescription):
     # True when the sensor reports the quantity itself (m3, kWh) rather than a
     # derived figure such as a percentage.
     native: bool = False
+    # True for per-day averages. They share the quantity's unit but are rates,
+    # and Home Assistant only allows the water and energy device classes on
+    # totals, so these carry no device class.
+    average: bool = False
 
 
 # Raw figures from Techem are enabled by default; the percentage sensors below
@@ -65,6 +69,7 @@ SENSORS: tuple[TechemSensorDescription, ...] = (
         key="daily_average",
         translation_key="daily_average",
         state_class=SensorStateClass.MEASUREMENT,
+        average=True,
         native=True,
         value_fn=lambda data: data.daily_average,
     ),
@@ -78,6 +83,7 @@ SENSORS: tuple[TechemSensorDescription, ...] = (
         key="previous_daily_average",
         translation_key="previous_daily_average",
         state_class=SensorStateClass.MEASUREMENT,
+        average=True,
         entity_registry_enabled_default=False,
         native=True,
         value_fn=lambda data: data.previous_daily_average,
@@ -160,7 +166,8 @@ class TechemSensor(CoordinatorEntity[TechemCoordinator], SensorEntity):
         self._attr_translation_key = f"{quantity.translation_key}_{description.key}"
 
         if description.native:
-            self._attr_device_class = quantity.device_class
+            if not description.average:
+                self._attr_device_class = quantity.device_class
             self._attr_native_unit_of_measurement = quantity.unit
 
         self._attr_device_info = DeviceInfo(

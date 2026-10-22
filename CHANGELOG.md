@@ -18,6 +18,11 @@ All notable changes to this project are documented here. This project follows
   grid, which counted it as purchased electricity.
 - Requires Home Assistant 2026.3 or newer, the first release that shows
   the brand assets shipped with the integration.
+
+### Fixed
+- The daily average sensors no longer trigger Home Assistant's "impossible
+  state class" warning. They are rates rather than totals, so they now carry
+  no water or energy device class; unit and history are unchanged.
 - The HACS validation no longer skips the brands check, since the icon and
   logo now ship in `custom_components/techem/brand/`.
 

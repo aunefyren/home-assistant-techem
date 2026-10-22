@@ -142,16 +142,66 @@ statistic for you.
    statistic tracking the total costs, and pick the matching `_cost`
    statistic.
 
-Limitations:
-* **One flat price per quantity.** Standing charges, administration fees and
-  tiered tariffs are not included. Treat the figure as variable cost only.
+### Finding your prices
+Techem does not expose prices to tenant accounts, so they have to come from
+your settlement (*avregning*). The PDFs are under *Statements* in the
+[tenant portal](https://beboer.techemadmin.no/). The table *Andel av total
+kostnad* lists each cost with a *Pris pr enhet* (price per unit) column:
+
+| Settlement line | Unit | Used for |
+| --- | --- | --- |
+| Varme | kWh | Heating |
+| Varmtvann | m³ | Energy to heat your hot water |
+| Kommunalt vann & avløp | m³ | Water and sewage, billed on cold **plus** hot water |
+| Øvrige kostnader | per unit (*seksjon*) | Fixed fees, not consumption based |
+
+Hot water is billed twice: once for the energy to heat it (*Varmtvann*) and
+once as water like any other (*vann & avløp*). The integration costs each
+meter on its own, so add the two together for the hot water price.
+
+With example prices of 1.30 per kWh for *Varme*, 100.00 per m³ for
+*Varmtvann* and 85.00 per m³ for *vann & avløp*, you would enter:
+
+| Option | Price |
+| --- | --- |
+| Heating price | 1.30 |
+| Cold water price | 85.00 |
+| Hot water price | 185.00 (100.00 + 85.00) |
+
+Check the result against the settlement: your consumption times these prices
+should match its total for *Varme*, *Varmtvann* and *vann & avløp* combined.
+These are Norwegian settlements; other countries may label lines differently.
+
+### Why the costs are approximate
+A settlement price is not a tariff. It is the building's actual bill for the
+period divided by the building's total consumption, so it is only known
+months after the fact and changes every period:
+* **Heating** moves the most. It follows the district heating bill, so a
+  winter quarter and a summer quarter can differ considerably.
+* **Hot water energy** is carved out of the same heating bill, using an
+  assumed energy use per m³ printed on the settlement, so it moves with it.
+* **Water and sewage** is the municipal tariff passed through. It usually
+  changes once a year and is the most stable of the three.
+
+Home Assistant cannot do better with what the integration has to work with.
+It only prices entity sources itself, and these readings have to be
+external statistics to land on the right day, so the integration writes the
+cost statistic and can only apply the single price you give it:
+* **Setting a price for the first time costs your entire history at that
+  price.** A recent price on old consumption will be off.
 * **Price changes are not retroactive in full.** The new price applies to the
   roughly 35 most recent days, which are rewritten on every update, and to
-  everything after. Older days keep the price they were costed at. Setting a
-  price for the first time costs your entire history at that price.
+  everything after. Older days keep the price they were costed at.
+* **Fixed fees are not included.** *Øvrige kostnader* and any other standing
+  charges are per unit, not per kWh or m³. Treat the dashboard figure as
+  variable cost only.
 * **Removing a price stops updates.** The existing cost statistic is kept.
   Remove it from the Energy dashboard, and delete it under *Developer tools →
   Statistics* if you no longer want it.
+
+For a steadier figure, use the average price over your last year of
+settlements rather than the latest quarter, and update it once a year. Expect
+the dashboard to land near your settlement, not on it.
 
 <br>
 
