@@ -110,3 +110,30 @@ async def test_statistic_id_attribute(
     assert all(
         state.attributes["statistic_id"].startswith("techem:") for state in states
     )
+
+
+async def test_averages_have_no_device_class(
+    hass: HomeAssistant, patched_setup, mock_config_entry: MockConfigEntry
+) -> None:
+    """Water and energy device classes forbid the measurement state class.
+
+    Home Assistant logs a warning for every entity that combines them, so the
+    per-day averages keep their unit but drop the device class.
+    """
+    await setup_entry(hass, mock_config_entry)
+
+    registry = er.async_get(hass)
+    entries = er.async_entries_for_config_entry(registry, mock_config_entry.entry_id)
+    averages = [
+        entry
+        for entry in entries
+        if entry.unique_id.endswith("_daily_average") and entry.disabled_by is None
+    ]
+    assert len(averages) == 3
+
+    for entry in averages:
+        state = hass.states.get(entry.entity_id)
+        assert state is not None
+        assert "device_class" not in state.attributes, entry.entity_id
+        assert state.attributes["state_class"] == "measurement"
+        assert state.attributes["unit_of_measurement"]
